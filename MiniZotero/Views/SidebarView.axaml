@@ -3,6 +3,7 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:MiniZotero.ViewModels"
+    xmlns:models="using:MiniZotero.Models"
     x:DataType="vm:SidebarViewModel">
 
 	<Border Background="#0F172A" Padding="12">
@@ -51,7 +52,11 @@
                      Padding="10,0"/>
 
 			<!-- Library area -->
-			<Grid Grid.Row="2" RowDefinitions="Auto,Auto,*" Margin="0,18,0,0">
+			<Grid Grid.Row="2"
+                  RowDefinitions="Auto,Auto,*"
+                  Margin="0,18,0,0">
+
+				<!-- Library title -->
 				<Grid Grid.Row="0" ColumnDefinitions="*,Auto">
 					<TextBlock Text="LIBRARY"
                                Foreground="#94A3B8"
@@ -65,7 +70,7 @@
                             FontSize="14"/>
 				</Grid>
 
-				<!-- Menu cố định của giao diện -->
+				<!-- Menu -->
 				<StackPanel Grid.Row="1" Margin="0,10,0,0" Spacing="4">
 					<Border Background="#1E293B" CornerRadius="6" Padding="10,8">
 						<TextBlock Text="All Documents"
@@ -93,28 +98,57 @@
 					</Border>
 				</StackPanel>
 
-				<!-- Empty document list -->
-				<Border Grid.Row="2"
-                        Background="#111827"
-                        CornerRadius="8"
-                        BorderBrush="#1E293B"
-                        BorderThickness="1"
-                        Margin="0,16,0,0"
-                        Padding="12">
-					<StackPanel HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Spacing="8">
-						<TextBlock Text="{Binding EmptyTitle}"
-                                   Foreground="#94A3B8"
-                                   FontSize="13"
-                                   HorizontalAlignment="Center"/>
+				<!-- Document list + empty state -->
+				<Grid Grid.Row="2" Margin="0,16,0,0">
 
-						<TextBlock Text="{Binding EmptyMessage}"
-                                   Foreground="#64748B"
-                                   FontSize="12"
-                                   HorizontalAlignment="Center"/>
-					</StackPanel>
-				</Border>
+					<Border Background="#111827"
+                            CornerRadius="8"
+                            BorderBrush="#1E293B"
+                            BorderThickness="1">
+						<ListBox ItemsSource="{Binding Documents}"
+                                 Background="Transparent"
+                                 BorderThickness="0">
+							<ListBox.ItemTemplate>
+								<DataTemplate x:DataType="models:DocumentItem">
+									<Border Padding="8" CornerRadius="6">
+										<StackPanel>
+											<TextBlock Text="{Binding Title}"
+                                                       Foreground="#E5E7EB"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"/>
+
+											<TextBlock Text="{Binding FilePath}"
+                                                       Foreground="#64748B"
+                                                       FontSize="11"/>
+										</StackPanel>
+									</Border>
+								</DataTemplate>
+							</ListBox.ItemTemplate>
+						</ListBox>
+					</Border>
+
+					<!-- Empty state -->
+					<Border Background="#111827"
+                            CornerRadius="8"
+                            BorderBrush="#1E293B"
+                            BorderThickness="1"
+                            Padding="12">
+						<StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="8">
+							<TextBlock Text="{Binding EmptyTitle}"
+                                       Foreground="#94A3B8"
+                                       FontSize="13"
+                                       HorizontalAlignment="Center"/>
+
+							<TextBlock Text="{Binding EmptyMessage}"
+                                       Foreground="#64748B"
+                                       FontSize="12"
+                                       HorizontalAlignment="Center"/>
+						</StackPanel>
+					</Border>
+
+				</Grid>
 			</Grid>
 
 			<!-- Import button -->
@@ -125,6 +159,7 @@
                     FontSize="13"
                     FontWeight="SemiBold"
                     Padding="12,0"/>
+
 		</Grid>
 	</Border>
 </UserControl>

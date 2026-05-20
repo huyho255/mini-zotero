@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using MiniZotero.Models;
 
 namespace MiniZotero.ViewModels;
 
@@ -6,16 +7,11 @@ public class SidebarViewModel
 {
     public string SearchText { get; set; } = string.Empty;
 
-    public ObservableCollection<string> LibraryMenus { get; } = new()
-    {
-        "All Documents",
-        "Recent",
-        "Starred",
-        "Trash"
-    };
+    public ObservableCollection<DocumentItem> Documents { get; } = new();
 
-    public bool HasDocuments { get; set; } = false;
+    public bool HasDocuments => Documents.Count > 0;
 
     public string EmptyTitle { get; } = "No documents yet";
+
     public string EmptyMessage { get; } = "Import a PDF to start";
 }
