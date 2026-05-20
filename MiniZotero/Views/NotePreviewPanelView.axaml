@@ -46,7 +46,7 @@
 					</StackPanel>
 
 					<TextBox Grid.Row="2"
-                             PlaceholderText="{Binding NotePlaceholder}"
+                             Watermark="{Binding NotePlaceholder}"
                              AcceptsReturn="True"
                              TextWrapping="Wrap"
                              BorderBrush="#E5E7EB"
@@ -55,7 +55,7 @@
                              Foreground="#111827"
                              Background="White"
                              Padding="12"
-                             IsEnabled="False"/>
+                             IsEnabled="{Binding HasActiveDocument}"/>
 				</Grid>
 			</Border>
 

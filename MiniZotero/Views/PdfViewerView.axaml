@@ -3,114 +3,90 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:MiniZotero.ViewModels"
+    xmlns:pdf="clr-namespace:AvaloniaPdfViewer;assembly=AvaloniaPdfViewer"
     x:DataType="vm:PdfViewerViewModel">
 
-	<Border Background="#F3F4F6" Padding="12">
-		<Grid RowDefinitions="42,*,34">
+    <Border Background="#F3F4F6" Padding="12">
+        <Grid RowDefinitions="42,*,34">
 
-			<!-- Toolbar placeholder -->
-			<Border Grid.Row="0"
+            <!-- Toolbar placeholder -->
+            <Border Grid.Row="0"
                     Background="White"
                     CornerRadius="8,8,0,0"
                     BorderBrush="#E5E7EB"
                     BorderThickness="1"
                     Padding="10,0">
-				<Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto">
-					<Button Grid.Column="0"
-                            Content="‹"
-                            Width="32"
-                            Height="28"
-                            IsEnabled="False"/>
-
-					<TextBlock Grid.Column="1"
-                               Text="{Binding CurrentPage}"
-                               VerticalAlignment="Center"
-                               Foreground="#94A3B8"
-                               FontSize="13"
-                               Margin="10,0,2,0"/>
-
-					<TextBlock Grid.Column="2"
-                               Text="{Binding TotalPages, StringFormat='/ {0}'}"
-                               VerticalAlignment="Center"
-                               Foreground="#94A3B8"
-                               FontSize="12"
-                               Margin="0,0,12,0"/>
-
-					<StackPanel Grid.Column="4"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Spacing="8">
-						<Button Content="−" Width="30" Height="28" IsEnabled="False"/>
-
-						<TextBlock Text="{Binding ZoomPercent, StringFormat='{}{0}%'}"
-                                   VerticalAlignment="Center"
-                                   Foreground="#94A3B8"
-                                   FontSize="12"/>
-
-						<Button Content="+" Width="30" Height="28" IsEnabled="False"/>
-					</StackPanel>
-
-					<Button Grid.Column="5"
-                            Content="Highlight"
-                            Height="28"
-                            Margin="12,0,0,0"
-                            IsEnabled="False"/>
-
-					<TextBlock Grid.Column="6"
-                               Text="⋯"
-                               VerticalAlignment="Center"
-                               Foreground="#94A3B8"
-                               FontSize="18"
-                               Margin="10,0,0,0"/>
-				</Grid>
-			</Border>
-
-			<!-- Empty PDF area -->
-			<Border Grid.Row="1"
-                    Background="White"
-                    BorderBrush="#E5E7EB"
-                    BorderThickness="1,0,1,0">
-				<StackPanel HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Spacing="10">
-					<TextBlock Text="📄"
-                               HorizontalAlignment="Center"
-                               FontSize="42"
-                               Foreground="#94A3B8"/>
-
-					<TextBlock Text="{Binding EmptyTitle}"
-                               HorizontalAlignment="Center"
-                               Foreground="#334155"
-                               FontSize="17"
-                               FontWeight="SemiBold"/>
-
-					<TextBlock Text="{Binding EmptyMessage}"
-                               HorizontalAlignment="Center"
-                               Foreground="#64748B"
-                               FontSize="13"/>
-				</StackPanel>
-			</Border>
-
-			<!-- Bottom bar -->
-			<Border Grid.Row="2"
-                    Background="White"
-                    CornerRadius="0,0,8,8"
-                    BorderBrush="#E5E7EB"
-                    BorderThickness="1">
-				<Grid ColumnDefinitions="Auto,*,Auto" Margin="10,0">
-					<TextBlock Grid.Column="0"
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock Grid.Column="0"
                                Text="{Binding StatusText}"
                                VerticalAlignment="Center"
                                Foreground="#64748B"
                                FontSize="12"/>
 
-					<TextBlock Grid.Column="2"
+                    <TextBlock Grid.Column="2"
+                               Text="PDF Viewer"
+                               VerticalAlignment="Center"
+                               Foreground="#111827"
+                               FontSize="13"
+                               FontWeight="SemiBold"/>
+                </Grid>
+            </Border>
+
+            <!-- PDF content area -->
+            <Grid Grid.Row="1"
+                  Background="White">
+
+                <!-- Real PDF viewer -->
+                <pdf:PdfViewer Source="{Binding DocumentPath}"
+                               IsVisible="{Binding HasDocumentLoaded}"/>
+
+                <!-- Empty state -->
+                <Border Background="White"
+                        BorderBrush="#E5E7EB"
+                        BorderThickness="1,0,1,0"
+                        IsVisible="{Binding IsEmptyViewVisible}">
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="10">
+                        <TextBlock Text="📄"
+                                   HorizontalAlignment="Center"
+                                   FontSize="42"
+                                   Foreground="#94A3B8"/>
+
+                        <TextBlock Text="{Binding EmptyTitle}"
+                                   HorizontalAlignment="Center"
+                                   Foreground="#334155"
+                                   FontSize="17"
+                                   FontWeight="SemiBold"/>
+
+                        <TextBlock Text="{Binding EmptyMessage}"
+                                   HorizontalAlignment="Center"
+                                   Foreground="#64748B"
+                                   FontSize="13"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Bottom bar -->
+            <Border Grid.Row="2"
+                    Background="White"
+                    CornerRadius="0,0,8,8"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="1">
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="10,0">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding StatusText}"
+                               VerticalAlignment="Center"
+                               Foreground="#64748B"
+                               FontSize="12"/>
+
+                    <TextBlock Grid.Column="2"
                                Text="{Binding DocumentStatus}"
                                VerticalAlignment="Center"
                                Foreground="#94A3B8"
                                FontSize="12"/>
-				</Grid>
-			</Border>
-		</Grid>
-	</Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
 </UserControl>

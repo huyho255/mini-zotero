@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -9,7 +9,11 @@ namespace MiniZotero.ViewModels;
 
 public class SidebarViewModel : INotifyPropertyChanged
 {
+    private DocumentItem? _selectedDocument;
+
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public event Action<DocumentItem>? DocumentSelected;
 
     public string SearchText { get; set; } = string.Empty;
 
@@ -22,6 +26,26 @@ public class SidebarViewModel : INotifyPropertyChanged
     public string EmptyTitle { get; } = "No documents yet";
 
     public string EmptyMessage { get; } = "Import a PDF to start";
+
+    public DocumentItem? SelectedDocument
+    {
+        get => _selectedDocument;
+        set
+        {
+            if (_selectedDocument == value)
+            {
+                return;
+            }
+
+            _selectedDocument = value;
+            OnPropertyChanged(nameof(SelectedDocument));
+
+            if (_selectedDocument is not null)
+            {
+                DocumentSelected?.Invoke(_selectedDocument);
+            }
+        }
+    }
 
     public void AddDocumentFromFile(string filePath)
     {

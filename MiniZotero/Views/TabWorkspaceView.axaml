@@ -19,7 +19,7 @@
                         FontSize="15"/>
 
 				<TextBlock Grid.Column="1"
-                           Text="{Binding EmptyTabText}"
+                           Text="{Binding CurrentTabTitle}"
                            VerticalAlignment="Center"
                            Foreground="#64748B"
                            FontSize="13"
