@@ -1,7 +1,9 @@
 <UserControl
     x:Class="MiniZotero.Views.NotePreviewPanelView"
     xmlns="https://github.com/avaloniaui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:MiniZotero.ViewModels"
+    x:DataType="vm:NotePreviewPanelViewModel">
 
 	<Border Background="#F3F4F6" Padding="10">
 		<Grid RowDefinitions="*,8,*">
@@ -44,7 +46,7 @@
 					</StackPanel>
 
 					<TextBox Grid.Row="2"
-                             PlaceholderText="Open a document to start taking notes..."
+                             PlaceholderText="{Binding NotePlaceholder}"
                              AcceptsReturn="True"
                              TextWrapping="Wrap"
                              BorderBrush="#E5E7EB"
@@ -77,7 +79,7 @@
 
 					<Grid Grid.Row="0" ColumnDefinitions="*,Auto">
 						<TextBlock Grid.Column="0"
-                                   Text="Preview highlights"
+                                   Text="{Binding PreviewTitle}"
                                    FontSize="14"
                                    FontWeight="SemiBold"
                                    Foreground="#111827"
@@ -91,7 +93,7 @@
 					</Grid>
 
 					<TextBlock Grid.Row="1"
-                               Text="Highlights from the current PDF will appear here."
+                               Text="{Binding PreviewDescription}"
                                Foreground="#64748B"
                                FontSize="12"
                                Margin="0,12,0,12"/>
@@ -104,13 +106,13 @@
 						<StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Spacing="8">
-							<TextBlock Text="No highlights yet"
+							<TextBlock Text="{Binding EmptyHighlightTitle}"
                                        HorizontalAlignment="Center"
                                        Foreground="#64748B"
                                        FontSize="13"
                                        FontWeight="SemiBold"/>
 
-							<TextBlock Text="Select text in a PDF to create highlights"
+							<TextBlock Text="{Binding EmptyHighlightMessage}"
                                        HorizontalAlignment="Center"
                                        Foreground="#94A3B8"
                                        FontSize="12"/>

@@ -3,6 +3,8 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:views="using:MiniZotero.Views"
+    xmlns:vm="using:MiniZotero.ViewModels"
+    x:DataType="vm:MainWindowViewModel"
     Title="MiniZotero - Document Manager"
     Width="1280"
     Height="760"
@@ -29,7 +31,7 @@
 				</StackPanel>
 
 				<TextBlock Grid.Column="1"
-                           Text="MiniZotero"
+                           Text="{Binding AppTitle}"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
                            Foreground="#E5E7EB"
@@ -46,9 +48,14 @@
 				<ColumnDefinition Width="380"/>
 			</Grid.ColumnDefinitions>
 
-			<views:SidebarView Grid.Column="0"/>
-			<views:TabWorkspaceView Grid.Column="1"/>
-			<views:NotePreviewPanelView Grid.Column="2"/>
+			<views:SidebarView Grid.Column="0"
+                               DataContext="{Binding Sidebar}"/>
+
+			<views:TabWorkspaceView Grid.Column="1"
+                                    DataContext="{Binding Workspace}"/>
+
+			<views:NotePreviewPanelView Grid.Column="2"
+                                        DataContext="{Binding NotePanel}"/>
 		</Grid>
 	</Grid>
 </Window>

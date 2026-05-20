@@ -2,7 +2,9 @@
     x:Class="MiniZotero.Views.TabWorkspaceView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:views="using:MiniZotero.Views">
+    xmlns:views="using:MiniZotero.Views"
+    xmlns:vm="using:MiniZotero.ViewModels"
+    x:DataType="vm:TabWorkspaceViewModel">
 
 	<Grid RowDefinitions="44,*" Background="#0B1120">
 
@@ -17,7 +19,7 @@
                         FontSize="15"/>
 
 				<TextBlock Grid.Column="1"
-                           Text="No document opened"
+                           Text="{Binding EmptyTabText}"
                            VerticalAlignment="Center"
                            Foreground="#64748B"
                            FontSize="13"
@@ -27,9 +29,10 @@
                             Orientation="Horizontal"
                             VerticalAlignment="Center"
                             Spacing="12">
-					<TextBlock Text="Search"
+					<TextBlock Text="{Binding SearchHint}"
                                Foreground="#64748B"
                                FontSize="12"/>
+
 					<TextBlock Text="⋯"
                                Foreground="#94A3B8"
                                FontSize="16"/>
@@ -38,6 +41,7 @@
 		</Border>
 
 		<!-- Workspace content -->
-		<views:PdfViewerView Grid.Row="1"/>
+		<views:PdfViewerView Grid.Row="1"
+                             DataContext="{Binding PdfViewer}"/>
 	</Grid>
 </UserControl>

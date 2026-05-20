@@ -1,7 +1,9 @@
 <UserControl
     x:Class="MiniZotero.Views.SidebarView"
     xmlns="https://github.com/avaloniaui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:MiniZotero.ViewModels"
+    x:DataType="vm:SidebarViewModel">
 
 	<Border Background="#0F172A" Padding="12">
 		<Grid RowDefinitions="Auto,Auto,*,Auto">
@@ -40,12 +42,12 @@
 			<TextBox Grid.Row="1"
                      Height="34"
                      PlaceholderText="Search documents..."
+                     Text="{Binding SearchText}"
                      FontSize="13"
                      Background="#111827"
                      Foreground="#E5E7EB"
                      BorderBrush="#334155"
                      BorderThickness="1"
-                     CornerRadius="6"
                      Padding="10,0"/>
 
 			<!-- Library area -->
@@ -63,6 +65,7 @@
                             FontSize="14"/>
 				</Grid>
 
+				<!-- Menu cố định của giao diện -->
 				<StackPanel Grid.Row="1" Margin="0,10,0,0" Spacing="4">
 					<Border Background="#1E293B" CornerRadius="6" Padding="10,8">
 						<TextBlock Text="All Documents"
@@ -101,12 +104,12 @@
 					<StackPanel HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Spacing="8">
-						<TextBlock Text="No documents yet"
+						<TextBlock Text="{Binding EmptyTitle}"
                                    Foreground="#94A3B8"
                                    FontSize="13"
                                    HorizontalAlignment="Center"/>
 
-						<TextBlock Text="Import a PDF to start"
+						<TextBlock Text="{Binding EmptyMessage}"
                                    Foreground="#64748B"
                                    FontSize="12"
                                    HorizontalAlignment="Center"/>
@@ -121,7 +124,6 @@
                     Margin="0,12,0,0"
                     FontSize="13"
                     FontWeight="SemiBold"
-                    HorizontalContentAlignment="Left"
                     Padding="12,0"/>
 		</Grid>
 	</Border>

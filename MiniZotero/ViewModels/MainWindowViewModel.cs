@@ -1,7 +1,11 @@
-﻿namespace MiniZotero.ViewModels
+﻿namespace MiniZotero.ViewModels;
+
+public class MainWindowViewModel
 {
-    public partial class MainWindowViewModel : ViewModelBase
-    {
-        public string Greeting { get; } = "Welcome to Avalonia!";
-    }
+    public string AppTitle { get; } = "MiniZotero";
+
+    public SidebarViewModel Sidebar { get; } = new();
+    public TabWorkspaceViewModel Workspace { get; } = new();
+    public PdfViewerViewModel PdfViewer { get; } = new();
+    public NotePreviewPanelViewModel NotePanel { get; } = new();
 }
