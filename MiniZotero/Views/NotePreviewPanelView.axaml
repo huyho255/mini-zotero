@@ -1,0 +1,123 @@
+<UserControl
+    x:Class="MiniZotero.Views.NotePreviewPanelView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+	<Border Background="#F3F4F6" Padding="10">
+		<Grid RowDefinitions="*,8,*">
+
+			<!-- Note taking -->
+			<Border Grid.Row="0"
+                    Background="White"
+                    CornerRadius="10"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="1"
+                    Padding="14">
+				<Grid RowDefinitions="Auto,Auto,*">
+
+					<Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+						<TextBlock Grid.Column="0"
+                                   Text="Note taking"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"
+                                   VerticalAlignment="Center"/>
+
+						<StackPanel Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    Spacing="4">
+							<Button Content="−" Width="28" Height="28" IsEnabled="False"/>
+							<Button Content="+" Width="28" Height="28" IsEnabled="False"/>
+							<Button Content="⋯" Width="28" Height="28" IsEnabled="False"/>
+						</StackPanel>
+					</Grid>
+
+					<StackPanel Grid.Row="1"
+                                Orientation="Horizontal"
+                                Spacing="14"
+                                Margin="0,18,0,12">
+						<TextBlock Text="H" Foreground="#94A3B8" FontSize="13"/>
+						<TextBlock Text="B" Foreground="#94A3B8" FontSize="13"/>
+						<TextBlock Text="I" Foreground="#94A3B8" FontSize="13"/>
+						<TextBlock Text="List" Foreground="#94A3B8" FontSize="12"/>
+						<TextBlock Text="Quote" Foreground="#94A3B8" FontSize="12"/>
+					</StackPanel>
+
+					<TextBox Grid.Row="2"
+                             PlaceholderText="Open a document to start taking notes..."
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             BorderBrush="#E5E7EB"
+                             BorderThickness="1"
+                             FontSize="13"
+                             Foreground="#111827"
+                             Background="White"
+                             Padding="12"
+                             IsEnabled="False"/>
+				</Grid>
+			</Border>
+
+			<!-- Splitter visual -->
+			<Border Grid.Row="1"
+                    Background="#CBD5E1"
+                    CornerRadius="4"
+                    Width="42"
+                    Height="6"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"/>
+
+			<!-- Preview highlights -->
+			<Border Grid.Row="2"
+                    Background="White"
+                    CornerRadius="10"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="1"
+                    Padding="14">
+				<Grid RowDefinitions="Auto,Auto,*">
+
+					<Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+						<TextBlock Grid.Column="0"
+                                   Text="Preview highlights"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"
+                                   VerticalAlignment="Center"/>
+
+						<Button Grid.Column="1"
+                                Content="⋯"
+                                Width="28"
+                                Height="28"
+                                IsEnabled="False"/>
+					</Grid>
+
+					<TextBlock Grid.Row="1"
+                               Text="Highlights from the current PDF will appear here."
+                               Foreground="#64748B"
+                               FontSize="12"
+                               Margin="0,12,0,12"/>
+
+					<Border Grid.Row="2"
+                            Background="#F9FAFB"
+                            BorderBrush="#E5E7EB"
+                            BorderThickness="1"
+                            CornerRadius="8">
+						<StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="8">
+							<TextBlock Text="No highlights yet"
+                                       HorizontalAlignment="Center"
+                                       Foreground="#64748B"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+
+							<TextBlock Text="Select text in a PDF to create highlights"
+                                       HorizontalAlignment="Center"
+                                       Foreground="#94A3B8"
+                                       FontSize="12"/>
+						</StackPanel>
+					</Border>
+				</Grid>
+			</Border>
+		</Grid>
+	</Border>
+</UserControl>
