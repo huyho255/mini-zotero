@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MiniZotero.ViewModels"
+             x:Class="MiniZotero.Views.NotePreviewPanelView"
+             x:DataType="vm:NotePreviewPanelViewModel">
+
+    <Grid RowDefinitions="Auto, *" Background="#16151D">
+        <Border Grid.Row="0" BorderBrush="#2E2C36" BorderThickness="0,0,0,1" Padding="12">
+            <Grid ColumnDefinitions="*, Auto">
+                <StackPanel>
+                    <TextBlock Text="Notes" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding ActiveDocument.Title, FallbackValue=No document selected}"
+                               Foreground="#93909A"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="New" Padding="10,4" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="12">
+            <Border Background="#1D1B22" CornerRadius="6" Padding="14" IsVisible="{Binding IsEmptyViewVisible}">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Width="260">
+                    <TextBlock Text="No note selected"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Select a PDF to start taking notes."
+                               Foreground="#93909A"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <TextBox Text="{Binding NoteText, Mode=TwoWay}"
+                     IsVisible="{Binding HasDocument}"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     Background="#1D1B22"
+                     BorderThickness="0"
+                     PlaceholderText="Write notes for this document..."/>
+        </Grid>
+    </Grid>
+</UserControl>

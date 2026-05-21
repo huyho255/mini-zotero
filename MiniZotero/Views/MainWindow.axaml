@@ -1,20 +1,221 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:MiniZotero.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d"
+        d:DesignWidth="1280"
+        d:DesignHeight="820"
+        Width="1280"
+        Height="820"
+        MinWidth="1100"
+        MinHeight="720"
         x:Class="MiniZotero.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
-        Title="MiniZotero">
+        Title="MiniZotero"
+        Background="#0C1017"
+        Foreground="#E8EDF4"
+        FontFamily="Segoe UI">
 
-    <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainWindowViewModel/>
-    </Design.DataContext>
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#253141"/>
+        </Style>
+        <Style Selector="Button.SidebarItem">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Foreground" Value="#D7DEE8"/>
+        </Style>
+        <Style Selector="Button.SidebarItem.Active">
+            <Setter Property="Background" Value="#273241"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="TextBlock.Muted">
+            <Setter Property="Foreground" Value="#8A96A8"/>
+        </Style>
+        <Style Selector="TextBlock.Section">
+            <Setter Property="Foreground" Value="#91A0B5"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Border.Card">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#DDE3EA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="7"/>
+        </Style>
+    </Window.Styles>
 
-    <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <Grid RowDefinitions="42,*,34" ColumnDefinitions="224,*,492">
+        <Border Grid.Row="0" Grid.Column="0" Background="#121923" BorderBrush="#202A37" BorderThickness="0,0,1,1">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="14,0">
+                <Border Width="20" Height="20" CornerRadius="4" Background="#7857FF" VerticalAlignment="Center">
+                    <TextBlock Text="M" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Grid.Column="1" Text="MiniZotero" Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                <Button Grid.Column="2" Content="+" Foreground="#9AA7B8" VerticalAlignment="Center" Padding="6,2"/>
+            </Grid>
+        </Border>
 
+        <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Background="#0E141D" BorderBrush="#202A37" BorderThickness="0,0,0,1">
+            <Grid Margin="8,0">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="No documents open" Classes="Muted" FontSize="12"/>
+                    <Button Content="Import PDF" Foreground="#D7DEE8" Background="#17202C" Padding="10,5"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Grid.Column="0" Background="#111923" BorderBrush="#202A37" BorderThickness="0,0,1,0" Padding="12">
+            <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+                <StackPanel Grid.Row="0" Spacing="4">
+                    <Button Classes="SidebarItem Active" Content="Library"/>
+                    <Button Classes="SidebarItem" Content="Recent"/>
+                    <Button Classes="SidebarItem" Content="Starred"/>
+                    <Button Classes="SidebarItem" Content="Trash"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,22,0,8">
+                    <TextBlock Classes="Section" Text="COLLECTIONS"/>
+                    <Button Grid.Column="1" Content="+" Padding="4,0"/>
+                </Grid>
+
+                <Border Grid.Row="2" Background="#1C2633" CornerRadius="7" Padding="12" Margin="0,0,0,16">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="No collections yet" FontSize="13"/>
+                        <TextBlock Text="Create a collection after importing documents." Classes="Muted" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Row="3" Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="Section" Text="TAGS"/>
+                        <Button Grid.Column="1" Content="+" Padding="4,0"/>
+                    </Grid>
+                    <Border Background="#1C2633" CornerRadius="7" Padding="12">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="No tags yet" FontSize="13"/>
+                            <TextBlock Text="Tags will appear here when documents are indexed." Classes="Muted" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Row="4" Spacing="12" Margin="0,18,0,0">
+                    <Border Background="#1C2633" CornerRadius="7" Padding="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel>
+                                <TextBlock Text="Watch Folder" FontSize="12" FontWeight="SemiBold"/>
+                                <TextBlock Text="Not configured" Classes="Muted" FontSize="11"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="Set up" Foreground="#D7DEE8" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <ProgressBar Value="0" Height="5" Background="#344153" Foreground="#7C5CFF"/>
+                    <TextBlock Text="Storage not initialized" Classes="Muted" FontSize="11"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Grid.Column="1" Background="#E8ECF2" RowDefinitions="42,*">
+            <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#D6DEE8" BorderThickness="0,0,1,1">
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="10,0">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Button Content="&lt;" Foreground="#94A3B8" IsEnabled="False"/>
+                        <TextBlock Text="0 / 0" Foreground="#94A3B8" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                        <Button Content="&gt;" Foreground="#94A3B8" IsEnabled="False"/>
+                        <Button Content="-" Foreground="#94A3B8" IsEnabled="False"/>
+                        <Button Content="+" Foreground="#94A3B8" IsEnabled="False"/>
+                        <ComboBox SelectedIndex="0" Width="78" Height="28" IsEnabled="False">
+                            <ComboBoxItem Content="100%"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Button Content="Fit" Foreground="#94A3B8" IsEnabled="False"/>
+                        <Button Content="Open" Foreground="#475569"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" Background="#EDF1F6">
+                <Border Background="White"
+                        CornerRadius="8"
+                        Padding="28"
+                        Width="420"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        BoxShadow="0 4 18 #22000000">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="No document selected"
+                                   Foreground="#111827"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="Import a PDF to preview it here."
+                                   Foreground="#64748B"
+                                   FontSize="14"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"/>
+                        <Button Content="Import PDF"
+                                HorizontalAlignment="Center"
+                                Foreground="#FFFFFF"
+                                Background="#5B43D6"
+                                Padding="16,7"
+                                Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <Grid Grid.Row="1" Grid.Column="2" Background="#E8ECF2" RowDefinitions="280,*">
+            <Border Grid.Row="0" Classes="Card" Margin="8,8,8,4">
+                <Grid RowDefinitions="42,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,0">
+                        <TextBlock Text="Note taking" Foreground="#111827" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <Button Content="New" Foreground="#475569" IsEnabled="False"/>
+                            <Button Content="..." Foreground="#475569" IsEnabled="False"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Grid.Row="1" BorderBrush="#E5EAF0" BorderThickness="0,1,0,0" Padding="18">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                            <TextBlock Text="No note selected" Foreground="#111827" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Select a document to create notes." Foreground="#8A96A8" FontSize="13" TextAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Classes="Card" Margin="8,4,8,8">
+                <Grid RowDefinitions="44,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,0">
+                        <TextBlock Text="Preview" Foreground="#111827" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="..." Foreground="#475569" IsEnabled="False" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" BorderBrush="#E5EAF0" BorderThickness="0,1,0,0" Padding="18">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                            <TextBlock Text="No highlights" Foreground="#111827" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Highlights will appear here after reading a document." Foreground="#8A96A8" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Background="#0D131C" BorderBrush="#202A37" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="16,0">
+                <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                    <TextBlock Text="Ready" Classes="Muted" FontSize="12"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="0 documents open" Classes="Muted" FontSize="12" VerticalAlignment="Center" Margin="0,0,24,0"/>
+                <TextBlock Grid.Column="2" Text="Sync not configured" Classes="Muted" FontSize="12" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+    </Grid>
 </Window>

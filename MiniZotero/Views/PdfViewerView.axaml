@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MiniZotero.ViewModels"
+             x:Class="MiniZotero.Views.PdfViewerView"
+             x:DataType="vm:PdfViewerViewModel">
+
+    <Grid Background="#26242C">
+        <Border Background="#1D1B22"
+                CornerRadius="6"
+                Padding="18"
+                Margin="20"
+                IsVisible="{Binding IsEmptyViewVisible}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Width="360">
+                <TextBlock Text="{Binding EmptyTitle}"
+                           FontSize="21"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding EmptyMessage}"
+                           Foreground="#93909A"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <Border Background="#F8F8F5"
+                CornerRadius="6"
+                Margin="20"
+                Padding="28"
+                IsVisible="{Binding HasDocumentLoaded}">
+            <Grid RowDefinitions="Auto, *, Auto">
+                <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,18">
+                    <TextBlock Text="{Binding StatusText}"
+                               Foreground="#475569"
+                               FontSize="12"/>
+                    <TextBlock Grid.Column="1"
+                               Text="PDF preview"
+                               Foreground="#111827"
+                               FontWeight="SemiBold"
+                               FontSize="13"/>
+                </Grid>
+
+                <Border Grid.Row="1"
+                        BorderBrush="#D1D5DB"
+                        BorderThickness="1"
+                        Background="White"
+                        Padding="24">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Width="420">
+                        <TextBlock Text="PDF renderer is ready to be connected"
+                                   Foreground="#111827"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding DocumentPath}"
+                                   Foreground="#64748B"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Grid.Row="2"
+                           Text="{Binding DocumentPath}"
+                           Foreground="#64748B"
+                           FontSize="11"
+                           Margin="0,14,0,0"
+                           TextTrimming="CharacterEllipsis"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

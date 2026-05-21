@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:MiniZotero.Models"
+             xmlns:vm="using:MiniZotero.ViewModels"
+             x:Class="MiniZotero.Views.SidebarView"
+             x:DataType="vm:SidebarViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Button.SidebarItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.SidebarItem:pointerover">
+            <Setter Property="Background" Value="#23222A"/>
+        </Style>
+        <Style Selector="TextBlock.Muted">
+            <Setter Property="Foreground" Value="#93909A"/>
+        </Style>
+        <Style Selector="TextBlock.SectionTitle">
+            <Setter Property="Foreground" Value="#79747E"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="#16151D" Padding="12">
+        <Grid RowDefinitions="Auto, Auto, *, Auto">
+            <StackPanel Grid.Row="0" Spacing="12">
+                <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Border Grid.Column="0" Background="#6750A4" CornerRadius="4" Width="28" Height="28">
+                        <TextBlock Text="M"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontWeight="SemiBold"
+                                   Foreground="White"/>
+                    </Border>
+                    <TextBlock Grid.Column="1"
+                               Text="MiniZotero"
+                               VerticalAlignment="Center"
+                               Margin="10,0,0,0"
+                               FontSize="15"
+                               FontWeight="SemiBold"/>
+                    <Button Grid.Column="2"
+                            Content="+"
+                            Click="OnImportPdfClicked"
+                            Background="Transparent"
+                            Padding="8,2"/>
+                </Grid>
+
+                <TextBox PlaceholderText="Search documents..."
+                         Height="32"
+                         FontSize="12"
+                         VerticalContentAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Margin="0,18,0,0" Spacing="2">
+                <Button Classes="SidebarItem" Content="Library"/>
+                <Button Classes="SidebarItem" Content="Recent"/>
+                <Button Classes="SidebarItem" Content="Starred"/>
+                <Button Classes="SidebarItem" Content="Trash"/>
+            </StackPanel>
+
+            <Grid Grid.Row="2" Margin="0,18,0,0" RowDefinitions="Auto, *">
+                <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="5,0,5,8">
+                    <TextBlock Classes="SectionTitle" Text="DOCUMENTS"/>
+                    <TextBlock Grid.Column="1"
+                               Classes="Muted"
+                               Text="{Binding DocumentCount}"
+                               FontSize="11"/>
+                </Grid>
+
+                <Grid Grid.Row="1">
+                    <Border Background="#1E1D24"
+                            CornerRadius="6"
+                            Padding="12"
+                            IsVisible="{Binding IsEmptyViewVisible}">
+                        <TextBlock Classes="Muted"
+                                   Text="No PDFs imported yet."
+                                   FontSize="12"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+
+                    <ListBox ItemsSource="{Binding Documents}"
+                             SelectedItem="{Binding SelectedDocument, Mode=TwoWay}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             IsVisible="{Binding HasDocuments}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:DocumentItem">
+                                <StackPanel Spacing="3" Margin="2,4">
+                                    <TextBlock Text="{Binding Title}"
+                                               FontSize="13"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding FilePath}"
+                                               Foreground="#93909A"
+                                               FontSize="11"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Grid>
+
+            <Border Grid.Row="3" Background="#1E1D24" Padding="10" CornerRadius="6" Margin="0,15,0,0">
+                <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel>
+                        <TextBlock Text="Watch Folder" FontSize="12"/>
+                        <TextBlock Classes="Muted" Text="Not configured" FontSize="11"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Configure" Padding="8,4" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>
