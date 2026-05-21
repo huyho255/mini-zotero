@@ -4,12 +4,15 @@ namespace MiniZotero.Models
 {
     public sealed class DocumentItem
     {
-        public DocumentItem(string title, string filePath)
+        public DocumentItem(string id, string title, string filePath, DateTimeOffset addedAt)
         {
+            Id = id;
             Title = title;
             FilePath = filePath;
-            AddedAt = DateTimeOffset.Now;
+            AddedAt = addedAt;
         }
+
+        public string Id { get; }
 
         public string Title { get; }
 
