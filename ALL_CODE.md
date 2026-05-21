@@ -186,21 +186,41 @@ namespace MiniZotero.Models
 {
     public sealed class DocumentItem
     {
-        public DocumentItem(string id, string title, string filePath, DateTimeOffset addedAt)
+        public DocumentItem()
+        {
+        }
+
+        public DocumentItem(
+            string id,
+            string title,
+            string filePath,
+            string originalFilePath,
+            DateTimeOffset addedAt,
+            DateTimeOffset? lastOpenedAt,
+            int lastReadPage)
         {
             Id = id;
             Title = title;
             FilePath = filePath;
+            OriginalFilePath = originalFilePath;
             AddedAt = addedAt;
+            LastOpenedAt = lastOpenedAt;
+            LastReadPage = lastReadPage;
         }
 
-        public string Id { get; }
+        public string Id { get; set; } = string.Empty;
 
-        public string Title { get; }
+        public string Title { get; set; } = string.Empty;
 
-        public string FilePath { get; }
+        public string FilePath { get; set; } = string.Empty;
 
-        public DateTimeOffset AddedAt { get; }
+        public string OriginalFilePath { get; set; } = string.Empty;
+
+        public DateTimeOffset AddedAt { get; set; } = DateTimeOffset.Now;
+
+        public DateTimeOffset? LastOpenedAt { get; set; }
+
+        public int LastReadPage { get; set; } = 1;
     }
 }
 ````
@@ -270,7 +290,16 @@ namespace MiniZotero.Repositories
             try
             {
                 var json = File.ReadAllText(libraryPath);
-                return JsonSerializer.Deserialize<List<DocumentItem>>(json, JsonOptions) ?? [];
+                var documents = JsonSerializer.Deserialize<List<DocumentItem>>(json, JsonOptions) ?? [];
+                var changed = NormalizeDocuments(documents);
+                changed |= MigrateDocumentsToStorage(documents);
+
+                if (changed)
+                {
+                    SaveDocuments(documents);
+                }
+
+                return documents;
             }
             catch (IOException)
             {
@@ -282,25 +311,49 @@ namespace MiniZotero.Repositories
             }
         }
 
-        public DocumentItem AddDocument(string filePath)
+        public DocumentItem ImportDocument(string sourceFilePath, IEnumerable<DocumentItem> existingDocuments)
         {
-            var documents = LoadDocuments().ToList();
-            var existingDocument = documents.FirstOrDefault(document =>
-                string.Equals(document.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+            if (!File.Exists(sourceFilePath))
+            {
+                throw new FileNotFoundException("The selected PDF file does not exist.", sourceFilePath);
+            }
+
+            var normalizedSourcePath = Path.GetFullPath(sourceFilePath);
+            var existingDocument = existingDocuments.FirstOrDefault(document =>
+                IsSamePath(document.OriginalFilePath, normalizedSourcePath) ||
+                IsSamePath(document.FilePath, normalizedSourcePath));
 
             if (existingDocument is not null)
             {
                 return existingDocument;
             }
 
-            var document = new DocumentItem(
-                Guid.NewGuid().ToString("N"),
-                Path.GetFileName(filePath),
-                filePath,
-                DateTimeOffset.Now);
+            var documentId = Guid.NewGuid().ToString("N");
+            var destinationPath = Path.Combine(_storageService.PdfFolderPath, $"{documentId}.pdf");
+            File.Copy(normalizedSourcePath, destinationPath, overwrite: false);
 
-            documents.Add(document);
-            SaveDocuments(documents);
+            var document = new DocumentItem(
+                documentId,
+                Path.GetFileNameWithoutExtension(normalizedSourcePath),
+                destinationPath,
+                normalizedSourcePath,
+                DateTimeOffset.Now,
+                lastOpenedAt: null,
+                lastReadPage: 1);
+
+            return document;
+        }
+
+        public DocumentItem AddDocument(string filePath)
+        {
+            var documents = LoadDocuments().ToList();
+            var document = ImportDocument(filePath, documents);
+
+            if (!documents.Any(existingDocument => existingDocument.Id == document.Id))
+            {
+                documents.Add(document);
+                SaveDocuments(documents);
+            }
 
             return document;
         }
@@ -309,6 +362,92 @@ namespace MiniZotero.Repositories
         {
             var json = JsonSerializer.Serialize(documents, JsonOptions);
             File.WriteAllText(_storageService.LibraryFilePath, json);
+        }
+
+        private static bool IsSamePath(string? left, string right)
+        {
+            if (string.IsNullOrWhiteSpace(left))
+            {
+                return false;
+            }
+
+            return string.Equals(Path.GetFullPath(left), right, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool MigrateDocumentsToStorage(IEnumerable<DocumentItem> documents)
+        {
+            var changed = false;
+
+            foreach (var document in documents)
+            {
+                if (string.IsNullOrWhiteSpace(document.FilePath) ||
+                    IsStoredPdfPath(document.FilePath) ||
+                    !File.Exists(document.FilePath))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(document.OriginalFilePath))
+                {
+                    document.OriginalFilePath = document.FilePath;
+                }
+
+                var destinationPath = Path.Combine(_storageService.PdfFolderPath, $"{document.Id}.pdf");
+                if (!File.Exists(destinationPath))
+                {
+                    File.Copy(document.FilePath, destinationPath, overwrite: false);
+                }
+
+                document.FilePath = destinationPath;
+                changed = true;
+            }
+
+            return changed;
+        }
+
+        private bool IsStoredPdfPath(string filePath)
+        {
+            var normalizedFilePath = Path.GetFullPath(filePath);
+            var normalizedPdfFolderPath = Path.GetFullPath(_storageService.PdfFolderPath);
+
+            return normalizedFilePath.StartsWith(
+                normalizedPdfFolderPath,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool NormalizeDocuments(IEnumerable<DocumentItem> documents)
+        {
+            var changed = false;
+
+            foreach (var document in documents)
+            {
+                if (string.IsNullOrWhiteSpace(document.Id))
+                {
+                    document.Id = Guid.NewGuid().ToString("N");
+                    changed = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(document.OriginalFilePath))
+                {
+                    document.OriginalFilePath = document.FilePath;
+                    changed = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(document.Title) &&
+                    !string.IsNullOrWhiteSpace(document.FilePath))
+                {
+                    document.Title = Path.GetFileNameWithoutExtension(document.FilePath);
+                    changed = true;
+                }
+
+                if (document.LastReadPage < 1)
+                {
+                    document.LastReadPage = 1;
+                    changed = true;
+                }
+            }
+
+            return changed;
         }
     }
 }
@@ -326,19 +465,25 @@ namespace MiniZotero.Services
     {
         private const string AppFolderName = "MiniZotero";
         private const string LibraryFileName = "library.json";
+        private const string PdfFolderName = "pdfs";
 
         public AppStorageService()
         {
-            AppDataPath = Path.Combine(
+            RootPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 AppFolderName);
 
-            Directory.CreateDirectory(AppDataPath);
+            Directory.CreateDirectory(RootPath);
+            Directory.CreateDirectory(PdfFolderPath);
         }
 
-        public string AppDataPath { get; }
+        public string RootPath { get; }
 
-        public string LibraryFilePath => Path.Combine(AppDataPath, LibraryFileName);
+        public string AppDataPath => RootPath;
+
+        public string PdfFolderPath => Path.Combine(RootPath, PdfFolderName);
+
+        public string LibraryFilePath => Path.Combine(RootPath, LibraryFileName);
     }
 }
 ````
@@ -545,12 +690,13 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            var document = _documentRepository.AddDocument(filePath);
+            var document = _documentRepository.ImportDocument(filePath, Documents);
             if (!Documents.Any(existingDocument => existingDocument.Id == document.Id))
             {
                 Documents.Add(document);
             }
 
+            _documentRepository.SaveDocuments(Documents);
             NotifyDocumentStateChanged();
 
             SelectedDocument = document;
