@@ -1,14 +1,16 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using MiniZotero.Models;
+using MiniZotero.Repositories;
 
 namespace MiniZotero.ViewModels;
 
 public class SidebarViewModel : INotifyPropertyChanged
 {
+    private readonly DocumentRepository _documentRepository;
+
     private DocumentItem? _selectedDocument;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -42,9 +44,30 @@ public class SidebarViewModel : INotifyPropertyChanged
 
             if (_selectedDocument is not null)
             {
+                _selectedDocument.LastOpenedAt = DateTime.Now;
+                _documentRepository.SaveDocuments(Documents);
+
                 DocumentSelected?.Invoke(_selectedDocument);
             }
         }
+    }
+
+    public SidebarViewModel(DocumentRepository documentRepository)
+    {
+        _documentRepository = documentRepository;
+        LoadDocuments();
+    }
+
+    public void LoadDocuments()
+    {
+        Documents.Clear();
+
+        foreach (DocumentItem document in _documentRepository.LoadDocuments())
+        {
+            Documents.Add(document);
+        }
+
+        RefreshDocumentState();
     }
 
     public void AddDocumentFromFile(string filePath)
@@ -54,26 +77,22 @@ public class SidebarViewModel : INotifyPropertyChanged
             return;
         }
 
-        bool alreadyExists = Documents.Any(document => document.FilePath == filePath);
+        DocumentItem document = _documentRepository.ImportDocument(filePath, Documents);
 
-        if (alreadyExists)
+        bool alreadyInList = Documents.Any(item => item.Id == document.Id);
+
+        if (!alreadyInList)
         {
-            return;
+            Documents.Add(document);
         }
 
-        var document = new DocumentItem
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = Path.GetFileNameWithoutExtension(filePath),
-            FilePath = filePath,
-            ImportedAt = DateTime.Now,
-            LastReadPage = 0,
-            TotalPages = 0,
-            IsStarred = false
-        };
+        _documentRepository.SaveDocuments(Documents);
 
-        Documents.Add(document);
+        RefreshDocumentState();
+    }
 
+    private void RefreshDocumentState()
+    {
         OnPropertyChanged(nameof(HasDocuments));
         OnPropertyChanged(nameof(IsDocumentListEmpty));
     }
