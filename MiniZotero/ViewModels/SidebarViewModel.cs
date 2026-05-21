@@ -1,12 +1,33 @@
 using System.Collections.ObjectModel;
-using System.IO;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MiniZotero.Models;
+using MiniZotero.Repositories;
+using MiniZotero.Services;
 
 namespace MiniZotero.ViewModels
 {
     public partial class SidebarViewModel : ViewModelBase
     {
+        private readonly DocumentRepository _documentRepository;
+
+        public SidebarViewModel()
+            : this(new DocumentRepository(new AppStorageService()))
+        {
+        }
+
+        public SidebarViewModel(DocumentRepository documentRepository)
+        {
+            _documentRepository = documentRepository;
+
+            foreach (var document in _documentRepository.LoadDocuments())
+            {
+                Documents.Add(document);
+            }
+
+            NotifyDocumentStateChanged();
+        }
+
         [ObservableProperty]
         private DocumentItem? _selectedDocument;
 
@@ -25,15 +46,22 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            var title = Path.GetFileName(filePath);
-            var document = new DocumentItem(title, filePath);
-            Documents.Add(document);
+            var document = _documentRepository.AddDocument(filePath);
+            if (!Documents.Any(existingDocument => existingDocument.Id == document.Id))
+            {
+                Documents.Add(document);
+            }
 
+            NotifyDocumentStateChanged();
+
+            SelectedDocument = document;
+        }
+
+        private void NotifyDocumentStateChanged()
+        {
             OnPropertyChanged(nameof(DocumentCount));
             OnPropertyChanged(nameof(HasDocuments));
             OnPropertyChanged(nameof(IsEmptyViewVisible));
-
-            SelectedDocument = document;
         }
     }
 }

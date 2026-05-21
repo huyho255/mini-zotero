@@ -1,9 +1,17 @@
-﻿namespace MiniZotero.ViewModels
+using MiniZotero.Repositories;
+using MiniZotero.Services;
+
+namespace MiniZotero.ViewModels
 {
     public partial class MainWindowViewModel : ViewModelBase
     {
         public MainWindowViewModel()
         {
+            var storageService = new AppStorageService();
+            var documentRepository = new DocumentRepository(storageService);
+
+            Sidebar = new SidebarViewModel(documentRepository);
+
             Sidebar.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
@@ -15,7 +23,7 @@
             };
         }
 
-        public SidebarViewModel Sidebar { get; } = new();
+        public SidebarViewModel Sidebar { get; }
 
         public TabWorkspaceViewModel Workspace { get; } = new();
 
