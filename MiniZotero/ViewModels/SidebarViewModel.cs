@@ -46,12 +46,13 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            var document = _documentRepository.AddDocument(filePath);
+            var document = _documentRepository.ImportDocument(filePath, Documents);
             if (!Documents.Any(existingDocument => existingDocument.Id == document.Id))
             {
                 Documents.Add(document);
             }
 
+            _documentRepository.SaveDocuments(Documents);
             NotifyDocumentStateChanged();
 
             SelectedDocument = document;
