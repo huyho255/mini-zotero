@@ -1,12 +1,17 @@
+using System;
 using System.ComponentModel;
+using System.IO;
 using MiniZotero.Models;
+using MiniZotero.Services;
 
 namespace MiniZotero.ViewModels;
 
 public class PdfViewerViewModel : INotifyPropertyChanged
 {
+    private static readonly PdfJsServerService PdfServer = new();
+
     private bool _hasDocumentLoaded;
-    private string _documentPath = string.Empty;
+    private Uri? _viewerSource;
     private string _emptyTitle = "Select a document to view";
     private string _emptyMessage = "or import a new PDF file";
     private string _statusText = "Ready";
@@ -32,18 +37,18 @@ public class PdfViewerViewModel : INotifyPropertyChanged
 
     public bool IsEmptyViewVisible => !HasDocumentLoaded;
 
-    public string DocumentPath
+    public Uri? ViewerSource
     {
-        get => _documentPath;
+        get => _viewerSource;
         private set
         {
-            if (_documentPath == value)
+            if (_viewerSource == value)
             {
                 return;
             }
 
-            _documentPath = value;
-            OnPropertyChanged(nameof(DocumentPath));
+            _viewerSource = value;
+            OnPropertyChanged(nameof(ViewerSource));
         }
     }
 
@@ -52,11 +57,6 @@ public class PdfViewerViewModel : INotifyPropertyChanged
         get => _emptyTitle;
         private set
         {
-            if (_emptyTitle == value)
-            {
-                return;
-            }
-
             _emptyTitle = value;
             OnPropertyChanged(nameof(EmptyTitle));
         }
@@ -67,11 +67,6 @@ public class PdfViewerViewModel : INotifyPropertyChanged
         get => _emptyMessage;
         private set
         {
-            if (_emptyMessage == value)
-            {
-                return;
-            }
-
             _emptyMessage = value;
             OnPropertyChanged(nameof(EmptyMessage));
         }
@@ -82,11 +77,6 @@ public class PdfViewerViewModel : INotifyPropertyChanged
         get => _statusText;
         private set
         {
-            if (_statusText == value)
-            {
-                return;
-            }
-
             _statusText = value;
             OnPropertyChanged(nameof(StatusText));
         }
@@ -97,11 +87,6 @@ public class PdfViewerViewModel : INotifyPropertyChanged
         get => _documentStatus;
         private set
         {
-            if (_documentStatus == value)
-            {
-                return;
-            }
-
             _documentStatus = value;
             OnPropertyChanged(nameof(DocumentStatus));
         }
@@ -109,7 +94,18 @@ public class PdfViewerViewModel : INotifyPropertyChanged
 
     public void LoadDocument(DocumentItem document)
     {
-        DocumentPath = document.FilePath;
+        if (!File.Exists(document.FilePath))
+        {
+            StatusText = "File not found";
+            DocumentStatus = document.FilePath;
+            return;
+        }
+
+        PdfServer.Start();
+
+        string viewerUrl = PdfServer.RegisterPdf(document.Id, document.FilePath);
+
+        ViewerSource = new Uri(viewerUrl);
         HasDocumentLoaded = true;
 
         EmptyTitle = document.Title;

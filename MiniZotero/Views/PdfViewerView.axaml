@@ -3,13 +3,12 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:MiniZotero.ViewModels"
-    xmlns:pdf="clr-namespace:AvaloniaPdfViewer;assembly=AvaloniaPdfViewer"
     x:DataType="vm:PdfViewerViewModel">
 
     <Border Background="#F3F4F6" Padding="12">
         <Grid RowDefinitions="42,*,34">
 
-            <!-- Toolbar placeholder -->
+            <!-- Toolbar -->
             <Border Grid.Row="0"
                     Background="White"
                     CornerRadius="8,8,0,0"
@@ -24,7 +23,7 @@
                                FontSize="12"/>
 
                     <TextBlock Grid.Column="2"
-                               Text="PDF Viewer"
+                               Text="PDF.js Viewer"
                                VerticalAlignment="Center"
                                Foreground="#111827"
                                FontSize="13"
@@ -32,15 +31,12 @@
                 </Grid>
             </Border>
 
-            <!-- PDF content area -->
-            <Grid Grid.Row="1"
-                  Background="White">
+            <!-- PDF.js WebView area -->
+            <Grid Grid.Row="1" Background="White">
 
-                <!-- Real PDF viewer -->
-                <pdf:PdfViewer Source="{Binding DocumentPath}"
+                <NativeWebView Source="{Binding ViewerSource}"
                                IsVisible="{Binding HasDocumentLoaded}"/>
 
-                <!-- Empty state -->
                 <Border Background="White"
                         BorderBrush="#E5E7EB"
                         BorderThickness="1,0,1,0"
@@ -48,9 +44,10 @@
                     <StackPanel HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Spacing="10">
-                        <TextBlock Text="📄"
+                        <TextBlock Text="PDF"
                                    HorizontalAlignment="Center"
-                                   FontSize="42"
+                                   FontSize="28"
+                                   FontWeight="SemiBold"
                                    Foreground="#94A3B8"/>
 
                         <TextBlock Text="{Binding EmptyTitle}"
@@ -65,9 +62,10 @@
                                    FontSize="13"/>
                     </StackPanel>
                 </Border>
+
             </Grid>
 
-            <!-- Bottom bar -->
+            <!-- Bottom status -->
             <Border Grid.Row="2"
                     Background="White"
                     CornerRadius="0,0,8,8"
