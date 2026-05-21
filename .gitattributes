@@ -1,0 +1,5 @@
+# Exclude bundled PDF.js from GitHub Linguist language statistics.
+MiniZotero/Assets/PdfJs/** linguist-vendored
+**/Assets/PdfJs/** linguist-vendored
+**/PdfJs/** linguist-vendored
+**/pdfjs/** linguist-vendored
