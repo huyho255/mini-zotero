@@ -4,41 +4,211 @@
              x:Class="MiniZotero.Views.NotePreviewPanelView"
              x:DataType="vm:NotePreviewPanelViewModel">
 
-    <Grid RowDefinitions="Auto, *" Background="#16151D">
-        <Border Grid.Row="0" BorderBrush="#2E2C36" BorderThickness="0,0,0,1" Padding="12">
-            <Grid ColumnDefinitions="*, Auto">
-                <StackPanel>
-                    <TextBlock Text="Notes" FontWeight="SemiBold"/>
-                    <TextBlock Text="{Binding ActiveDocument.Title, FallbackValue=No document selected}"
-                               Foreground="#93909A"
-                               FontSize="11"
-                               TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-                <Button Grid.Column="1" Content="New" Padding="10,4" VerticalAlignment="Center"/>
+    <UserControl.Styles>
+        <Style Selector="Border.PanelCard">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#D5DDE7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+        <Style Selector="Button.PanelIconButton">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+        </Style>
+        <Style Selector="Button.PanelIconButton:pointerover">
+            <Setter Property="Background" Value="#F1F5F9"/>
+        </Style>
+        <Style Selector="Button.FormatButton">
+            <Setter Property="Width" Value="27"/>
+            <Setter Property="Height" Value="27"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.FormatButton:pointerover">
+            <Setter Property="Background" Value="#F1F5F9"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Background="#E6EBF2" RowDefinitions="280,6,*">
+        <Border Grid.Row="0" Classes="PanelCard" Margin="8,8,8,0">
+            <Grid RowDefinitions="42,34,*">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="14,0">
+                    <TextBlock Text="&#xE734;"
+                               FontFamily="Segoe MDL2 Assets"
+                               Foreground="#64748B"
+                               FontSize="14"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="Note taking"
+                               Foreground="#111827"
+                               FontWeight="SemiBold"
+                               Margin="9,0,0,0"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Border Background="#F8FAFC"
+                                BorderBrush="#D5DDE7"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Height="28"
+                                Padding="9,0">
+                            <TextBlock Text="100%" Foreground="#334155" FontSize="12" VerticalAlignment="Center"/>
+                        </Border>
+                        <Button Classes="PanelIconButton" Content="&#xE738;"/>
+                        <Button Classes="PanelIconButton" Content="&#xE710;"/>
+                        <Button Classes="PanelIconButton" Content="&#xE8A7;"/>
+                        <Button Classes="PanelIconButton" Content="&#xE713;"/>
+                    </StackPanel>
+                </Grid>
+
+                <Border Grid.Row="1"
+                        BorderBrush="#E5EAF0"
+                        BorderThickness="0,1,0,1"
+                        Padding="12,0">
+                    <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                        <Button Classes="FormatButton" Content="H"/>
+                        <Button Classes="FormatButton" Content="B" FontWeight="Bold"/>
+                        <Button Classes="FormatButton" Content="I" FontStyle="Italic"/>
+                        <Button Classes="FormatButton" Content="&#xE943;" FontFamily="Segoe MDL2 Assets"/>
+                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets"/>
+                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets"/>
+                        <Button Classes="FormatButton" Content="&#xE9D5;" FontFamily="Segoe MDL2 Assets"/>
+                        <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets"/>
+                        <Button Classes="FormatButton" Content="&#xE7C3;" FontFamily="Segoe MDL2 Assets"/>
+                        <Button Classes="FormatButton" Content="&#xE8A5;" FontFamily="Segoe MDL2 Assets"/>
+                        <Button Classes="FormatButton" Content="&#xE80A;" FontFamily="Segoe MDL2 Assets"/>
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Row="2">
+                    <TextBox Text="{Binding NoteText, Mode=TwoWay}"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             Background="White"
+                             Foreground="#111827"
+                             BorderThickness="0"
+                             Padding="16"
+                             FontSize="13"
+                             PlaceholderText="Ghi chú nhanh bằng Markdown..."
+                             IsVisible="{Binding HasDocument}"/>
+
+                    <StackPanel IsVisible="{Binding IsEmptyViewVisible}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="8"
+                                Width="280">
+                        <TextBlock Text="No note selected"
+                                   Foreground="#111827"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="Select a document to create notes."
+                                   Foreground="#7C8A9E"
+                                   FontSize="13"
+                                   TextAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Margin="12">
-            <Border Background="#1D1B22" CornerRadius="6" Padding="14" IsVisible="{Binding IsEmptyViewVisible}">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Width="260">
-                    <TextBlock Text="No note selected"
-                               FontSize="16"
-                               FontWeight="SemiBold"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="Select a PDF to start taking notes."
-                               Foreground="#93909A"
-                               TextWrapping="Wrap"
-                               TextAlignment="Center"/>
-                </StackPanel>
-            </Border>
+        <Border Grid.Row="1"
+                Width="30"
+                Height="14"
+                CornerRadius="4"
+                Background="#FFFFFF"
+                BorderBrush="#D5DDE7"
+                BorderThickness="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+            <TextBlock Text="::::"
+                       Foreground="#64748B"
+                       FontSize="11"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Margin="0,-2,0,0"/>
+        </Border>
 
-            <TextBox Text="{Binding NoteText, Mode=TwoWay}"
-                     IsVisible="{Binding HasDocument}"
-                     AcceptsReturn="True"
-                     TextWrapping="Wrap"
-                     Background="#1D1B22"
-                     BorderThickness="0"
-                     PlaceholderText="Write notes for this document..."/>
-        </Grid>
+        <Border Grid.Row="2" Classes="PanelCard" Margin="8,0,8,8">
+            <Grid RowDefinitions="42,*">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="14,0">
+                    <TextBlock Text="&#xE8A5;"
+                               FontFamily="Segoe MDL2 Assets"
+                               Foreground="#64748B"
+                               FontSize="14"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="Preview"
+                               Foreground="#111827"
+                               FontWeight="SemiBold"
+                               FontSize="12"
+                               Margin="9,0,0,0"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Border Background="#F8FAFC"
+                                BorderBrush="#D5DDE7"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Height="28"
+                                Padding="9,0">
+                            <TextBlock Text="100%" Foreground="#334155" FontSize="12" VerticalAlignment="Center"/>
+                        </Border>
+                        <Button Classes="PanelIconButton" Content="&#xE738;"/>
+                        <Button Classes="PanelIconButton" Content="&#xE710;"/>
+                        <Button Classes="PanelIconButton" Content="&#xE713;"/>
+                    </StackPanel>
+                </Grid>
+
+                <Border Grid.Row="1"
+                        BorderBrush="#E5EAF0"
+                        BorderThickness="0,1,0,0"
+                        Padding="16">
+                    <Grid>
+                        <StackPanel IsVisible="{Binding IsEmptyViewVisible}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="8"
+                                    Width="300">
+                            <TextBlock Text="No highlights"
+                                       Foreground="#111827"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="Highlights will appear here after reading a document."
+                                       Foreground="#7C8A9E"
+                                       FontSize="13"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+                        </StackPanel>
+
+                        <Border IsVisible="{Binding HasDocument}"
+                                Background="#F8FAFC"
+                                BorderBrush="#E5EAF0"
+                                BorderThickness="1"
+                                CornerRadius="7"
+                                Padding="14">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Highlight preview"
+                                           Foreground="#111827"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"/>
+                                <TextBlock Text="Highlights from the selected document will appear here."
+                                           Foreground="#7C8A9E"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>
