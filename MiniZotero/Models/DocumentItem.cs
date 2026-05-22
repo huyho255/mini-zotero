@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace MiniZotero.Models
 {
@@ -15,7 +16,9 @@ namespace MiniZotero.Models
             string originalFilePath,
             DateTimeOffset addedAt,
             DateTimeOffset? lastOpenedAt,
-            int lastReadPage)
+            int lastReadPage,
+            int lastZoomPercent = 120,
+            bool isStarred = false)
         {
             Id = id;
             Title = title;
@@ -24,6 +27,8 @@ namespace MiniZotero.Models
             AddedAt = addedAt;
             LastOpenedAt = lastOpenedAt;
             LastReadPage = lastReadPage;
+            LastZoomPercent = lastZoomPercent;
+            IsStarred = isStarred;
         }
 
         public string Id { get; set; } = string.Empty;
@@ -39,5 +44,15 @@ namespace MiniZotero.Models
         public DateTimeOffset? LastOpenedAt { get; set; }
 
         public int LastReadPage { get; set; } = 1;
+
+        public int LastZoomPercent { get; set; } = 120;
+
+        public bool IsStarred { get; set; }
+
+        public bool IsDeleted { get; set; }
+
+        public DateTimeOffset? DeletedAt { get; set; }
+
+        public List<string> Tags { get; set; } = [];
     }
 }

@@ -1,7 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:MiniZotero.Models"
              xmlns:vm="using:MiniZotero.ViewModels"
              x:Class="MiniZotero.Views.NotePreviewPanelView"
+             x:Name="Root"
              x:DataType="vm:NotePreviewPanelViewModel">
 
     <UserControl.Styles>
@@ -189,23 +191,74 @@
                                        TextAlignment="Center"/>
                         </StackPanel>
 
-                        <Border IsVisible="{Binding HasDocument}"
-                                Background="#F8FAFC"
-                                BorderBrush="#E5EAF0"
-                                BorderThickness="1"
-                                CornerRadius="7"
-                                Padding="14">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Highlight preview"
-                                           Foreground="#111827"
-                                           FontWeight="SemiBold"
-                                           FontSize="13"/>
-                                <TextBlock Text="Highlights from the selected document will appear here."
-                                           Foreground="#7C8A9E"
-                                           FontSize="12"
-                                           TextWrapping="Wrap"/>
-                            </StackPanel>
-                        </Border>
+                        <StackPanel IsVisible="{Binding IsHighlightEmptyViewVisible}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="8"
+                                    Width="300">
+                            <TextBlock Text="No highlights"
+                                       Foreground="#111827"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="Highlights will appear here after reading a document."
+                                       Foreground="#7C8A9E"
+                                       FontSize="13"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+                        </StackPanel>
+
+                        <ScrollViewer IsVisible="{Binding HasHighlights}">
+                            <ItemsControl ItemsSource="{Binding Highlights}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:HighlightItem">
+                                        <Border Padding="10"
+                                                Margin="0,0,0,8"
+                                                CornerRadius="8"
+                                                Background="#FFF7CC"
+                                                BorderBrush="#EAB308"
+                                                BorderThickness="1">
+                                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                                <Button Grid.Row="0"
+                                                        Grid.Column="0"
+                                                        Command="{Binding #Root.DataContext.SelectHighlightCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Padding="0"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Stretch">
+                                                    <TextBlock Text="{Binding Text}"
+                                                               TextWrapping="Wrap"
+                                                               MaxLines="4"
+                                                               FontSize="12"/>
+                                                </Button>
+
+                                                <Button Grid.Row="0"
+                                                        Grid.Column="1"
+                                                        Classes="PanelIconButton"
+                                                        Content="&#xE74D;"
+                                                        Width="24"
+                                                        Height="24"
+                                                        Padding="0"
+                                                        Margin="8,0,0,0"
+                                                        FontSize="12"
+                                                        Command="{Binding #Root.DataContext.DeleteHighlightCommand}"
+                                                        CommandParameter="{Binding}"/>
+
+                                                <TextBlock Grid.Row="1"
+                                                           Grid.Column="0"
+                                                           Grid.ColumnSpan="2"
+                                                           Text="{Binding PageNumber, StringFormat='Page {0}'}"
+                                                           FontSize="11"
+                                                           Opacity="0.65"
+                                                           Margin="0,6,0,0"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                     </Grid>
                 </Border>
             </Grid>

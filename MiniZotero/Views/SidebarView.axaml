@@ -1,9 +1,16 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:MiniZotero.Converters"
              xmlns:models="using:MiniZotero.Models"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              xmlns:vm="using:MiniZotero.ViewModels"
              x:Class="MiniZotero.Views.SidebarView"
+             x:Name="Root"
              x:DataType="vm:SidebarViewModel">
+
+    <UserControl.Resources>
+        <converters:StarredBrushConverter x:Key="StarredBrushConverter"/>
+    </UserControl.Resources>
 
     <UserControl.Styles>
         <Style Selector="Button.SidebarIconButton">
@@ -17,6 +24,19 @@
         </Style>
         <Style Selector="Button.SidebarIconButton:pointerover">
             <Setter Property="Background" Value="#273242"/>
+        </Style>
+        <Style Selector="Button.DocumentActionButton">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="9,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Background" Value="#182231"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Foreground" Value="#D7DEE8"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.DocumentActionButton:pointerover">
+            <Setter Property="Background" Value="#243246"/>
         </Style>
         <Style Selector="TextBlock.SectionTitle">
             <Setter Property="Foreground" Value="#8795A8"/>
@@ -69,7 +89,7 @@
         </Style>
         <Style Selector="ListBox.DocumentList ListBoxItem">
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Margin" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
         <Style Selector="ListBox.DocumentList ListBoxItem:selected /template/ ContentPresenter">
@@ -229,33 +249,89 @@
 
                     <Grid IsVisible="{Binding HasDocuments}" RowDefinitions="Auto,*" Margin="0,14,0,0">
                         <Grid ColumnDefinitions="*,Auto" Margin="4,0,4,8">
-                            <TextBlock Text="RECENT DOCUMENTS" Classes="SectionTitle"/>
+                            <TextBlock Text="{Binding CurrentDocumentSectionTitle}" Classes="SectionTitle"/>
                             <TextBlock Grid.Column="1" Text="{Binding DocumentCount}" Foreground="#9EABBB" FontSize="11"/>
                         </Grid>
 
                         <ListBox Grid.Row="1"
                                  Classes="DocumentList"
-                                 ItemsSource="{Binding Documents}"
-                                 SelectedItem="{Binding SelectedDocument, Mode=TwoWay}">
+                                 ItemsSource="{Binding DocumentExplorerItems}"
+                                 IsVisible="{Binding HasVisibleDocuments}"
+                                 SelectedItem="{Binding SelectedExplorerItem, Mode=TwoWay}">
                             <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="models:DocumentItem">
-                                    <Border Padding="9,7">
-                                        <StackPanel Spacing="3">
-                                            <TextBlock Text="{Binding Title}"
+                                <DataTemplate x:DataType="vm:DocumentExplorerItem">
+                                    <Border Padding="2,0">
+                                        <Grid Height="24" ColumnDefinitions="Auto,Auto,*,Auto">
+                                            <Button Classes="SidebarIconButton"
+                                                    Content="{Binding ChevronIcon}"
+                                                    Width="14"
+                                                    Height="24"
+                                                    FontSize="8"
+                                                    Command="{Binding #Root.DataContext.ToggleFolderCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding IsFolder}"/>
+                                            <TextBlock Text=""
+                                                       Width="14"
+                                                       IsVisible="{Binding IsDocument}"/>
+
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Icon}"
+                                                       FontFamily="Segoe MDL2 Assets"
+                                                       Foreground="#9CCBFF"
+                                                       FontSize="12"
+                                                       Width="18"
+                                                       VerticalAlignment="Center"/>
+
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding Name}"
                                                        Foreground="#F2F6FC"
                                                        FontWeight="SemiBold"
                                                        FontSize="12"
+                                                       VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding FilePath}"
-                                                       Foreground="#8D9AAB"
-                                                       FontSize="10"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
+
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding Count}"
+                                                       Foreground="#9EABBB"
+                                                       FontSize="11"
+                                                       Margin="8,0,4,0"
+                                                       VerticalAlignment="Center"
+                                                       IsVisible="{Binding IsFolder}"/>
+
+                                            <Button Grid.Column="3"
+                                                    Classes="SidebarIconButton"
+                                                    Content="&#xE734;"
+                                                    Width="24"
+                                                    Height="24"
+                                                    Foreground="{Binding IsStarred, Converter={StaticResource StarredBrushConverter}}"
+                                                    Command="{Binding #Root.DataContext.ToggleStarCommand}"
+                                                    CommandParameter="{Binding Document}"
+                                                    IsVisible="{Binding IsStarButtonVisible}"/>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Grid>
+
+                    <StackPanel Spacing="6"
+                                Margin="4,10,4,0"
+                                IsVisible="{Binding HasSelectedDocument}">
+                        <Button Classes="DocumentActionButton"
+                                Content="Move to Trash"
+                                Command="{Binding MoveSelectedDocumentToTrashCommand}"
+                                IsVisible="{Binding IsMoveToTrashVisible}"/>
+
+                        <Button Classes="DocumentActionButton"
+                                Content="Restore"
+                                Command="{Binding RestoreSelectedDocumentCommand}"
+                                IsVisible="{Binding IsTrashDocumentActionsVisible}"/>
+
+                        <Button Classes="DocumentActionButton"
+                                Content="Delete Forever"
+                                Command="{Binding DeleteSelectedDocumentForeverCommand}"
+                                IsVisible="{Binding IsTrashDocumentActionsVisible}"/>
+                    </StackPanel>
 
                     <Grid ColumnDefinitions="*,Auto" Margin="4,18,4,8">
                         <TextBlock Text="TAGS" Classes="SectionTitle"/>
@@ -273,17 +349,72 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:TagItem">
-                                <StackPanel Orientation="Horizontal" Spacing="7" Margin="9,4">
-                                    <TextBlock Text="{Binding Name}"
-                                               Foreground="#E5ECF5"
-                                               FontSize="11"/>
-                                    <TextBlock Text="{Binding CountText}"
-                                               Foreground="#C7D2E2"
-                                               FontSize="11"/>
-                                </StackPanel>
+                                <Border Classes="TagChip">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <TextBlock Text="{Binding Name}"
+                                                   Foreground="#E5ECF5"
+                                                   FontSize="11"/>
+                                        <TextBlock Text="{Binding CountText}"
+                                                   Foreground="#A9B6C7"
+                                                   FontSize="11"/>
+                                    </StackPanel>
+                                </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+
+                    <Border Margin="4,12,4,0"
+                            Padding="8"
+                            CornerRadius="8"
+                            Background="#111B27"
+                            IsVisible="{Binding IsTagEditorVisible}">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="ADD TAG TO SELECTED PDF"
+                                       Classes="SectionTitle"/>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding NewTagText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="e.g. OOP, CMOS, Paper"
+                                         Height="30"
+                                         FontSize="12"
+                                         VerticalContentAlignment="Center"/>
+
+                                <Button Grid.Column="1"
+                                        Content="+"
+                                        Width="32"
+                                        Height="30"
+                                        Margin="6,0,0,0"
+                                        Command="{Binding AddTagToSelectedDocumentCommand}"/>
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding SelectedDocument.Tags}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="sys:String">
+                                        <Border Classes="TagChip">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding}"
+                                                           Foreground="#E5ECF5"
+                                                           FontSize="11"/>
+                                                <Button Classes="SidebarIconButton"
+                                                        Content="&#xE711;"
+                                                        Width="18"
+                                                        Height="18"
+                                                        FontSize="8"
+                                                        Command="{Binding #Root.DataContext.RemoveTagFromSelectedDocumentCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
 
@@ -295,8 +426,17 @@
                             <TextBlock Text="Watch Folder" Foreground="#E8EDF4" FontSize="12" FontWeight="SemiBold"/>
                             <Ellipse Width="5" Height="5" Fill="#24E38C" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Grid.Column="2" Text="&#xE713;" FontFamily="Segoe MDL2 Assets" Foreground="#B9C4D3" FontSize="13" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Text="Đang theo dõi: Downloads" Foreground="#9EABBB" FontSize="11" Margin="0,9,0,0"/>
+                        <Button Grid.Column="2"
+                                Classes="SidebarIconButton"
+                                Content="&#xE713;"
+                                Click="OnConfigureWatchFolderClicked"/>
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="0"
+                                   Grid.ColumnSpan="3"
+                                   Text="{Binding WatchFolderStatusText}"
+                                   Foreground="#9EABBB"
+                                   FontSize="11"
+                                   Margin="0,9,0,0"/>
                     </Grid>
                 </Border>
 

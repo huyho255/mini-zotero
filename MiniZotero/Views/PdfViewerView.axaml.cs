@@ -1,8 +1,10 @@
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Avalonia.Controls;
+using MiniZotero.Models;
 using MiniZotero.ViewModels;
-using System.ComponentModel;
 
 namespace MiniZotero.Views
 {
@@ -21,6 +23,7 @@ namespace MiniZotero.Views
             if (BoundViewModel is not null)
             {
                 BoundViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+                BoundViewModel.ScriptRequested -= OnScriptRequested;
             }
 
             BoundViewModel = DataContext as PdfViewerViewModel;
@@ -28,6 +31,7 @@ namespace MiniZotero.Views
             if (BoundViewModel is not null)
             {
                 BoundViewModel.PropertyChanged += OnViewModelPropertyChanged;
+                BoundViewModel.ScriptRequested += OnScriptRequested;
                 ApplyToolMode(BoundViewModel.ToolMode);
             }
         }
@@ -38,6 +42,17 @@ namespace MiniZotero.Views
                 BoundViewModel is not null)
             {
                 ApplyToolMode(BoundViewModel.ToolMode);
+            }
+        }
+
+        private void OnScriptRequested(string script)
+        {
+            try
+            {
+                _ = PdfWebView.InvokeScript(script);
+            }
+            catch
+            {
             }
         }
 
@@ -85,6 +100,16 @@ namespace MiniZotero.Views
                     return;
                 }
 
+                if (message.Type == "highlightCreated")
+                {
+                    viewModel.AddHighlightFromViewer(
+                        message.Text ?? string.Empty,
+                        message.PageNumber,
+                        message.Rects ?? []);
+
+                    return;
+                }
+
                 viewModel.UpdateReadingStateFromViewer(
                     message.PageNumber,
                     message.ZoomPercent
@@ -93,6 +118,7 @@ namespace MiniZotero.Views
                 if (message.Type == "loaded")
                 {
                     ApplyToolMode(viewModel.ToolMode);
+                    viewModel.SendHighlightsToViewer();
                 }
             }
             catch
@@ -110,6 +136,12 @@ namespace MiniZotero.Views
 
             [JsonPropertyName("zoomPercent")]
             public int ZoomPercent { get; set; }
+
+            [JsonPropertyName("text")]
+            public string? Text { get; set; }
+
+            [JsonPropertyName("rects")]
+            public List<HighlightRect>? Rects { get; set; }
         }
     }
 }

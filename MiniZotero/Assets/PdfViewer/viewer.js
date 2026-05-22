@@ -15,13 +15,16 @@ let zoomTimer = null;
 let isLiveZooming = false;
 let scrollTimer = null;
 let customSelection = null;
+let areaSelectionBox = null;
 let currentToolMode = "select";
 let handPanState = null;
+let storedHighlights = [];
 
 const RENDER_QUALITY = 2;
 const MAX_OUTPUT_SCALE = 4;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
+const AREA_SELECTION_THRESHOLD = 4;
 
 function getQueryValue(name) {
     const params = new URLSearchParams(window.location.search);
@@ -38,11 +41,12 @@ function clampScale(scale) {
     return Math.min(Math.max(scale, MIN_ZOOM), MAX_ZOOM);
 }
 
-function sendToCSharp(type, data) {
+function sendToCSharp(type, data = {}) {
     const payload = JSON.stringify({
         type,
         pageNumber: data.pageNumber || currentPage,
-        zoomPercent: Math.round(currentScale * 100)
+        zoomPercent: Math.round(currentScale * 100),
+        ...data
     });
 
     try {
@@ -459,6 +463,7 @@ async function renderPageInternal(state) {
     state.renderedScale = targetScale;
     state.isRendered = true;
 
+    renderStoredHighlightsForPage(state);
     applyPageVisualScale(state, visualScale);
 }
 
@@ -574,13 +579,22 @@ function clearAllSelectionOverlays() {
 function clearCustomSelection() {
     customSelection = null;
     clearAllSelectionOverlays();
+    clearAreaSelectionBox();
+}
+
+function clearAreaSelectionBox() {
+    areaSelectionBox?.remove();
+    areaSelectionBox = null;
 }
 
 function setToolMode(toolMode) {
-    currentToolMode = toolMode === "hand" ? "hand" : "select";
+    currentToolMode = ["hand", "highlight"].includes(toolMode)
+        ? toolMode
+        : "select";
     handPanState = null;
     viewer.classList.toggle("toolHand", currentToolMode === "hand");
     viewer.classList.toggle("toolSelect", currentToolMode === "select");
+    viewer.classList.toggle("toolHighlight", currentToolMode === "highlight");
     viewer.classList.remove("panning");
 
     if (currentToolMode === "hand") {
@@ -649,7 +663,28 @@ function getPagePointFromClient(state, clientX, clientY) {
     };
 }
 
-function findWordAtClientPoint(clientX, clientY) {
+function findRenderedPageAtClientPoint(clientX, clientY) {
+    for (const state of pageStates.values()) {
+        if (!state.content || !state.isRendered) {
+            continue;
+        }
+
+        const contentRect = state.content.getBoundingClientRect();
+
+        if (
+            clientX >= contentRect.left &&
+            clientX <= contentRect.right &&
+            clientY >= contentRect.top &&
+            clientY <= contentRect.bottom
+        ) {
+            return state;
+        }
+    }
+
+    return null;
+}
+
+function findWordAtClientPoint(clientX, clientY, includeNearbyWord = true) {
     for (const state of pageStates.values()) {
         if (!state.content || !state.isRendered || state.textItems.length === 0) {
             continue;
@@ -693,7 +728,7 @@ function findWordAtClientPoint(clientX, clientY) {
             }
         }
 
-        if (bestWord && bestDistance < 900) {
+        if (includeNearbyWord && bestWord && bestDistance < 900) {
             return {
                 state,
                 word: bestWord
@@ -702,6 +737,108 @@ function findWordAtClientPoint(clientX, clientY) {
     }
 
     return null;
+}
+
+function getClientDragRect(selection) {
+    const left = Math.min(selection.startClientX, selection.endClientX);
+    const top = Math.min(selection.startClientY, selection.endClientY);
+    const right = Math.max(selection.startClientX, selection.endClientX);
+    const bottom = Math.max(selection.startClientY, selection.endClientY);
+
+    return {
+        left,
+        top,
+        right,
+        bottom,
+        width: right - left,
+        height: bottom - top
+    };
+}
+
+function rectsIntersect(first, second) {
+    return first.right >= second.left &&
+        first.left <= second.right &&
+        first.bottom >= second.top &&
+        first.top <= second.bottom;
+}
+
+function getWordClientRect(state, word) {
+    const contentRect = state.content.getBoundingClientRect();
+    const scaleX = contentRect.width / state.content.offsetWidth;
+    const scaleY = contentRect.height / state.content.offsetHeight;
+
+    return {
+        left: contentRect.left + word.left * scaleX,
+        top: contentRect.top + word.top * scaleY,
+        right: contentRect.left + word.right * scaleX,
+        bottom: contentRect.top + word.bottom * scaleY
+    };
+}
+
+function getOrCreateAreaSelectionBox() {
+    if (areaSelectionBox) {
+        return areaSelectionBox;
+    }
+
+    areaSelectionBox = document.createElement("div");
+    areaSelectionBox.className = "selectionDragBox";
+    viewer.appendChild(areaSelectionBox);
+    return areaSelectionBox;
+}
+
+function renderAreaSelectionBox(selection) {
+    const dragRect = getClientDragRect(selection);
+
+    if (dragRect.width < AREA_SELECTION_THRESHOLD &&
+        dragRect.height < AREA_SELECTION_THRESHOLD) {
+        clearAreaSelectionBox();
+        return;
+    }
+
+    const viewerRect = viewer.getBoundingClientRect();
+    const box = getOrCreateAreaSelectionBox();
+
+    box.style.left = `${dragRect.left - viewerRect.left + viewer.scrollLeft}px`;
+    box.style.top = `${dragRect.top - viewerRect.top + viewer.scrollTop}px`;
+    box.style.width = `${dragRect.width}px`;
+    box.style.height = `${dragRect.height}px`;
+}
+
+function updateAreaSelectionWords(selection) {
+    const dragRect = getClientDragRect(selection);
+    const wordIndexesByPage = new Map();
+
+    if (dragRect.width < AREA_SELECTION_THRESHOLD &&
+        dragRect.height < AREA_SELECTION_THRESHOLD) {
+        selection.wordIndexesByPage = wordIndexesByPage;
+        return;
+    }
+
+    for (const state of pageStates.values()) {
+        if (!state.content || !state.isRendered || state.textItems.length === 0) {
+            continue;
+        }
+
+        const contentRect = state.content.getBoundingClientRect();
+
+        if (!rectsIntersect(dragRect, contentRect)) {
+            continue;
+        }
+
+        const selectedIndexes = new Set();
+
+        for (const word of state.textItems) {
+            if (rectsIntersect(dragRect, getWordClientRect(state, word))) {
+                selectedIndexes.add(word.index);
+            }
+        }
+
+        if (selectedIndexes.size > 0) {
+            wordIndexesByPage.set(state.pageNumber, selectedIndexes);
+        }
+    }
+
+    selection.wordIndexesByPage = wordIndexesByPage;
 }
 
 function compareSelectionPosition(firstPage, firstIndex, secondPage, secondIndex) {
@@ -715,6 +852,16 @@ function compareSelectionPosition(firstPage, firstIndex, secondPage, secondIndex
 function getSelectedWordsForPage(state) {
     if (!customSelection || state.textItems.length === 0) {
         return [];
+    }
+
+    if (customSelection.mode === "area") {
+        const selectedIndexes = customSelection.wordIndexesByPage?.get(state.pageNumber);
+
+        if (!selectedIndexes) {
+            return [];
+        }
+
+        return state.textItems.filter(word => selectedIndexes.has(word.index));
     }
 
     const direction = compareSelectionPosition(
@@ -796,26 +943,388 @@ function renderCustomSelection() {
 
         const fragment = document.createDocumentFragment();
 
-        for (const [, lineWords] of groupWordsByLine(words)) {
-            lineWords.sort((first, second) => first.left - second.left);
-
-            const left = Math.min(...lineWords.map(word => word.left));
-            const top = Math.min(...lineWords.map(word => word.top));
-            const right = Math.max(...lineWords.map(word => word.right));
-            const bottom = Math.max(...lineWords.map(word => word.bottom));
+        for (const segment of buildHighlightSegments(words, state)) {
             const rect = document.createElement("div");
 
             rect.className = "selectionOverlayRect";
-            rect.style.left = `${left}px`;
-            rect.style.top = `${top}px`;
-            rect.style.width = `${right - left}px`;
-            rect.style.height = `${bottom - top}px`;
+            rect.style.left = `${segment.left}px`;
+            rect.style.top = `${segment.top}px`;
+            rect.style.width = `${segment.width}px`;
+            rect.style.height = `${segment.height}px`;
 
             fragment.appendChild(rect);
         }
 
         state.selectionOverlay.appendChild(fragment);
     }
+}
+
+function getRenderedPageWidth(state) {
+    if (state.content?.offsetWidth) {
+        return state.content.offsetWidth;
+    }
+
+    if (state.baseWidth && state.renderedScale) {
+        return state.baseWidth * state.renderedScale;
+    }
+
+    return state.baseWidth * currentScale;
+}
+
+function getLineFontHeight(line) {
+    const heights = line.words
+        .map(word => word.height || 0)
+        .filter(height => height > 0)
+        .sort((first, second) => first - second);
+
+    return heights.length === 0
+        ? 12
+        : heights[Math.floor(heights.length / 2)];
+}
+
+function getLineText(line) {
+    return line.words
+        .map(word => word.text ?? "")
+        .join("")
+        .trim();
+}
+
+function compareLinePosition(first, second) {
+    const fontHeight = Math.max(getLineFontHeight(first), getLineFontHeight(second));
+    const yTolerance = Math.max(2, fontHeight * 0.4);
+
+    if (Math.abs(first.top - second.top) > yTolerance) {
+        return first.top - second.top;
+    }
+
+    return first.left - second.left;
+}
+
+function isProbablyHeadingText(text) {
+    if (!text) {
+        return false;
+    }
+
+    const normalized = text.replace(/\s+/g, " ").trim();
+
+    if (normalized.length <= 3) {
+        return false;
+    }
+
+    const isUpper = /^([IVXLCDM]+\.?\s+)?[A-ZÀ-Ỵ0-9\s\-–().:]+$/.test(normalized);
+    const isNumbered = /^(chương|chapter|section|phần|mục|\d+(\.\d+)*\.?)\s+\d*.*$/i.test(normalized);
+    const isCommonHeader = /^(Abstract|Introduction|Methodology|Methods|Results|Discussion|Conclusion|References|Acknowledgment|Tóm\s+tắt|Tổng\s+quan|Kết\s+luận)$/i.test(normalized);
+
+    return isUpper || isNumbered || isCommonHeader;
+}
+
+function isFullWidthLine(line, state) {
+    const pageWidth = getRenderedPageWidth(state);
+    const widthRatio = line.width / Math.max(pageWidth, 1);
+    const touchesLeft = line.left <= pageWidth * 0.2;
+    const touchesRight = line.right >= pageWidth * 0.8;
+
+    return widthRatio >= 0.65 ||
+        (widthRatio >= 0.52 && touchesLeft && touchesRight);
+}
+
+function isStructuralLine(line, state) {
+    if (isFullWidthLine(line, state)) {
+        return true;
+    }
+
+    const text = getLineText(line);
+    const pageWidth = getRenderedPageWidth(state);
+
+    return isProbablyHeadingText(text) &&
+        (line.width / Math.max(pageWidth, 1)) <= 0.65;
+}
+
+function groupWordsIntoVisualLines(words, state) {
+    const pageWidth = getRenderedPageWidth(state);
+    const sortedWords = [...words].sort((first, second) => {
+        const fontHeight = Math.max(first.height || 12, second.height || 12);
+
+        return Math.abs(first.lineY - second.lineY) > Math.max(2, fontHeight * 0.4)
+            ? first.lineY - second.lineY
+            : first.left - second.left;
+    });
+    const rows = [];
+
+    for (const word of sortedWords) {
+        const yTolerance = Math.max(2, (word.height || 12) * 0.4);
+        let targetRow = rows.find(row => Math.abs(row.lineY - word.lineY) <= yTolerance);
+
+        if (!targetRow) {
+            targetRow = {
+                lineY: word.lineY,
+                words: []
+            };
+            rows.push(targetRow);
+        }
+
+        targetRow.words.push(word);
+    }
+
+    const lines = [];
+
+    for (const row of rows) {
+        const rowWords = row.words.sort((first, second) => first.left - second.left);
+        let currentLineWords = [];
+
+        for (const word of rowWords) {
+            const previous = currentLineWords[currentLineWords.length - 1];
+
+            if (!previous) {
+                currentLineWords.push(word);
+                continue;
+            }
+
+            const fontHeight = Math.max(previous.height || 12, word.height || 12);
+
+            if ((word.left - previous.right) > Math.max(fontHeight * 2.8, pageWidth * 0.022)) {
+                lines.push(createVisualLineFromWords(currentLineWords));
+                currentLineWords = [word];
+            } else {
+                currentLineWords.push(word);
+            }
+        }
+
+        if (currentLineWords.length > 0) {
+            lines.push(createVisualLineFromWords(currentLineWords));
+        }
+    }
+
+    return lines.sort(compareLinePosition);
+}
+
+function createVisualLineFromWords(words) {
+    const left = Math.min(...words.map(word => word.left));
+    const right = Math.max(...words.map(word => word.right));
+    const top = Math.min(...words.map(word => word.top));
+    const bottom = Math.max(...words.map(word => word.bottom));
+
+    return {
+        words,
+        left,
+        right,
+        top,
+        bottom,
+        lineY: words.reduce((sum, word) => sum + word.lineY, 0) / words.length,
+        width: right - left,
+        height: bottom - top,
+        centerX: (left + right) / 2
+    };
+}
+
+function getHorizontalOverlapRatio(line, column) {
+    const overlap = Math.min(line.right, column.right) -
+        Math.max(line.left, column.left);
+
+    return overlap <= 0
+        ? 0
+        : overlap / Math.min(line.width, column.right - column.left);
+}
+
+function groupLinesIntoColumns(lines, state) {
+    const columns = [];
+
+    for (const line of [...lines].sort(compareLinePosition)) {
+        if (isStructuralLine(line, state)) {
+            columns.push({
+                lines: [line],
+                left: line.left,
+                right: line.right,
+                top: line.top,
+                bottom: line.bottom,
+                isStructural: true
+            });
+            continue;
+        }
+
+        let bestColumn = null;
+        let bestScore = 0;
+
+        for (const column of columns) {
+            if (column.isStructural) {
+                continue;
+            }
+
+            const overlapScore = getHorizontalOverlapRatio(line, column);
+            const xTolerance = Math.max(3, getLineFontHeight(line) * 0.75);
+            const score = line.centerX >= column.left - xTolerance &&
+                line.centerX <= column.right + xTolerance
+                ? Math.max(overlapScore, 0.5)
+                : overlapScore;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestColumn = column;
+            }
+        }
+
+        if (!bestColumn || bestScore < 0.25) {
+            bestColumn = {
+                lines: [],
+                left: line.left,
+                right: line.right,
+                top: line.top,
+                bottom: line.bottom,
+                isStructural: false
+            };
+            columns.push(bestColumn);
+        }
+
+        bestColumn.lines.push(line);
+        bestColumn.left = Math.min(bestColumn.left, line.left);
+        bestColumn.right = Math.max(bestColumn.right, line.right);
+        bestColumn.top = Math.min(bestColumn.top, line.top);
+        bestColumn.bottom = Math.max(bestColumn.bottom, line.bottom);
+    }
+
+    return columns;
+}
+
+function getCopyLinesInReadingOrder(words, state) {
+    const lines = groupWordsIntoVisualLines(words, state);
+
+    if (lines.length === 0) {
+        return [];
+    }
+
+    const sortedLines = [...lines].sort(compareLinePosition);
+    const output = [];
+    let sectionLines = [];
+
+    function flushSection() {
+        if (sectionLines.length === 0) {
+            return;
+        }
+
+        const columns = groupLinesIntoColumns(sectionLines, state)
+            .filter(column => !column.isStructural)
+            .sort((first, second) => first.left - second.left);
+
+        for (const column of columns) {
+            for (const line of column.lines.sort(compareLinePosition)) {
+                output.push(line.words);
+            }
+        }
+
+        sectionLines = [];
+    }
+
+    for (const line of sortedLines) {
+        if (isStructuralLine(line, state)) {
+            flushSection();
+            output.push(line.words);
+            continue;
+        }
+
+        sectionLines.push(line);
+    }
+
+    flushSection();
+    return output;
+}
+
+function shouldInsertSpaceBetweenWords(previous, current) {
+    if (!previous || !current) {
+        return false;
+    }
+
+    const previousText = previous.text ?? "";
+    const currentText = current.text ?? "";
+
+    if (!previousText ||
+        !currentText ||
+        /^[,.;:!?%)\]\}]/.test(currentText) ||
+        /[(\[\{]$/.test(previousText)) {
+        return false;
+    }
+
+    return (current.left - previous.right) >
+        Math.max(2, Math.max(previous.height || 0, current.height || 0, 10) * 0.22);
+}
+
+function buildCopiedLineText(lineWords) {
+    const sortedWords = [...lineWords].sort((first, second) => first.left - second.left);
+    let result = "";
+    let previous = null;
+
+    for (const word of sortedWords) {
+        if (!word.text) {
+            continue;
+        }
+
+        if (previous && shouldInsertSpaceBetweenWords(previous, word)) {
+            result += " ";
+        }
+
+        result += word.text;
+        previous = word;
+    }
+
+    return result
+        .replace(/\s+([,.;:!?%)\]\}])/g, "$1")
+        .replace(/([(\[\{])\s+/g, "$1")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+}
+
+function shouldSplitHighlightSegment(previous, current, state) {
+    if (!previous || !current) {
+        return false;
+    }
+
+    const gap = current.left - previous.right;
+    const fontHeight = Math.max(previous.height || 12, current.height || 12);
+    const pageWidth = getRenderedPageWidth(state);
+
+    return gap > Math.max(fontHeight * 1.15, pageWidth * 0.012, 8);
+}
+
+function createHighlightSegment(words) {
+    const left = Math.min(...words.map(word => word.left));
+    const top = Math.min(...words.map(word => word.top));
+    const right = Math.max(...words.map(word => word.right));
+    const bottom = Math.max(...words.map(word => word.bottom));
+
+    return {
+        left,
+        top,
+        right,
+        bottom,
+        width: right - left,
+        height: bottom - top
+    };
+}
+
+function buildHighlightSegments(words, state) {
+    const segments = [];
+    const lines = groupWordsIntoVisualLines(words, state);
+
+    for (const line of lines) {
+        const sortedWords = [...line.words].sort((first, second) => first.left - second.left);
+        let segmentWords = [];
+
+        for (const word of sortedWords) {
+            const previous = segmentWords[segmentWords.length - 1];
+
+            if (previous && shouldSplitHighlightSegment(previous, word, state)) {
+                segments.push(createHighlightSegment(segmentWords));
+                segmentWords = [];
+            }
+
+            segmentWords.push(word);
+        }
+
+        if (segmentWords.length > 0) {
+            segments.push(createHighlightSegment(segmentWords));
+        }
+    }
+
+    return segments;
 }
 
 function getCustomSelectedText() {
@@ -832,17 +1341,151 @@ function getCustomSelectedText() {
             continue;
         }
 
-        const pageLines = groupWordsByLine(words).map(([, lineWords]) =>
-            lineWords
-                .sort((first, second) => first.left - second.left)
-                .map(word => word.text)
-                .join(" ")
-        );
+        const pageLines = getCopyLinesInReadingOrder(words, state)
+            .map(lineWords => buildCopiedLineText(lineWords))
+            .filter(line => line.length > 0);
 
         selectedLines.push(...pageLines);
     }
 
     return selectedLines.join("\n");
+}
+
+function getSelectedHighlightRects() {
+    if (!customSelection) {
+        return [];
+    }
+
+    const result = [];
+
+    for (const state of pageStates.values()) {
+        const words = getSelectedWordsForPage(state);
+
+        if (words.length === 0) {
+            continue;
+        }
+
+        const scale = state.renderedScale || currentScale || 1;
+
+        for (const segment of buildHighlightSegments(words, state)) {
+            result.push({
+                pageNumber: state.pageNumber,
+                left: segment.left / scale,
+                top: segment.top / scale,
+                width: segment.width / scale,
+                height: segment.height / scale
+            });
+        }
+    }
+
+    return result;
+}
+
+function renderStoredHighlightsForPage(state) {
+    if (!state.highlightLayer) {
+        return;
+    }
+
+    state.highlightLayer.innerHTML = "";
+
+    const scale = state.renderedScale || currentScale || 1;
+
+    for (const highlight of storedHighlights) {
+        const rects = highlight.rects ?? highlight.Rects ?? [];
+
+        for (const rect of rects) {
+            const pageNumber = rect.pageNumber ?? rect.PageNumber;
+
+            if (pageNumber !== state.pageNumber) {
+                continue;
+            }
+
+            const left = rect.left ?? rect.Left ?? 0;
+            const top = rect.top ?? rect.Top ?? 0;
+            const width = rect.width ?? rect.Width ?? 0;
+            const height = rect.height ?? rect.Height ?? 0;
+            const item = document.createElement("div");
+
+            item.className = "highlightItem";
+            item.dataset.highlightId = highlight.id ?? highlight.Id ?? "";
+            item.style.left = `${left * scale}px`;
+            item.style.top = `${top * scale}px`;
+            item.style.width = `${width * scale}px`;
+            item.style.height = `${height * scale}px`;
+
+            state.highlightLayer.appendChild(item);
+        }
+    }
+}
+
+function renderAllStoredHighlights() {
+    for (const state of pageStates.values()) {
+        renderStoredHighlightsForPage(state);
+    }
+}
+
+function setStoredHighlights(highlights) {
+    storedHighlights = Array.isArray(highlights)
+        ? highlights
+        : [];
+    renderAllStoredHighlights();
+}
+
+function navigateToStoredHighlight(highlightId) {
+    const highlight = storedHighlights.find(item =>
+        (item.id ?? item.Id) === highlightId
+    );
+
+    if (!highlight) {
+        return;
+    }
+
+    const rects = highlight.rects ?? highlight.Rects ?? [];
+
+    if (rects.length === 0) {
+        return;
+    }
+
+    const firstRect = rects[0];
+    const pageNumber = firstRect.pageNumber ?? firstRect.PageNumber ?? 1;
+
+    clearCustomSelection();
+    scrollToPage(pageNumber);
+
+    setTimeout(async () => {
+        await renderVisiblePages(true);
+        renderAllStoredHighlights();
+
+        const state = pageStates.get(pageNumber);
+
+        if (!state) {
+            return;
+        }
+
+        const scale = state.renderedScale || currentScale || 1;
+        const top = (firstRect.top ?? firstRect.Top ?? 0) * scale;
+
+        viewer.scrollTop = state.wrapper.offsetTop + top - 80;
+    }, 120);
+}
+
+function createHighlightFromSelection() {
+    const text = getCustomSelectedText();
+    const rects = getSelectedHighlightRects();
+
+    if (!text || rects.length === 0) {
+        return;
+    }
+
+    const firstRect = rects[0];
+
+    sendToCSharp("highlightCreated", {
+        text,
+        pageNumber: firstRect.pageNumber,
+        rects
+    });
+
+    clearCustomSelection();
 }
 
 function scheduleZoom(newScale, anchorClientX = null, anchorClientY = null) {
@@ -913,6 +1556,14 @@ window.miniZoteroPdf = {
 
     setToolMode(toolMode) {
         setToolMode(toolMode);
+    },
+
+    setHighlights(highlights) {
+        setStoredHighlights(highlights);
+    },
+
+    goToHighlight(highlightId) {
+        navigateToStoredHighlight(highlightId);
     },
 
     getState() {
@@ -991,16 +1642,37 @@ viewer.addEventListener("pointerdown", event => {
         return;
     }
 
-    const hit = findWordAtClientPoint(event.clientX, event.clientY);
+    const hit = findWordAtClientPoint(event.clientX, event.clientY, false);
 
     if (!hit) {
-        clearCustomSelection();
+        const pageState = findRenderedPageAtClientPoint(event.clientX, event.clientY);
+
+        if (!pageState) {
+            clearCustomSelection();
+            return;
+        }
+
+        event.preventDefault();
+
+        customSelection = {
+            mode: "area",
+            startClientX: event.clientX,
+            startClientY: event.clientY,
+            endClientX: event.clientX,
+            endClientY: event.clientY,
+            isDragging: true,
+            wordIndexesByPage: new Map()
+        };
+
+        viewer.setPointerCapture?.(event.pointerId);
+        clearAllSelectionOverlays();
         return;
     }
 
     event.preventDefault();
 
     customSelection = {
+        mode: "word",
         startPage: hit.state.pageNumber,
         startWordIndex: hit.word.index,
         endPage: hit.state.pageNumber,
@@ -1019,6 +1691,18 @@ viewer.addEventListener("pointermove", event => {
     }
 
     if (!customSelection?.isDragging || isLiveZooming) {
+        return;
+    }
+
+    if (customSelection.mode === "area") {
+        event.preventDefault();
+
+        customSelection.endClientX = event.clientX;
+        customSelection.endClientY = event.clientY;
+
+        renderAreaSelectionBox(customSelection);
+        updateAreaSelectionWords(customSelection);
+        renderCustomSelection();
         return;
     }
 
@@ -1047,12 +1731,24 @@ viewer.addEventListener("pointerup", event => {
 
     customSelection.isDragging = false;
 
+    if (customSelection.mode === "area") {
+        customSelection.endClientX = event.clientX;
+        customSelection.endClientY = event.clientY;
+        updateAreaSelectionWords(customSelection);
+    }
+
+    clearAreaSelectionBox();
+
     try {
         viewer.releasePointerCapture?.(event.pointerId);
     } catch {
     }
 
     renderCustomSelection();
+
+    if (currentToolMode === "highlight") {
+        createHighlightFromSelection();
+    }
 });
 
 viewer.addEventListener("pointercancel", event => {
@@ -1065,6 +1761,7 @@ viewer.addEventListener("pointercancel", event => {
     }
 
     customSelection.isDragging = false;
+    clearAreaSelectionBox();
 
     try {
         viewer.releasePointerCapture?.(event.pointerId);
@@ -1100,6 +1797,12 @@ document.addEventListener("keydown", event => {
     if (event.key === "Escape") {
         clearCustomSelection();
         window.getSelection()?.removeAllRanges();
+        return;
+    }
+
+    if (event.ctrlKey && event.key.toLowerCase() === "h") {
+        event.preventDefault();
+        createHighlightFromSelection();
     }
 });
 

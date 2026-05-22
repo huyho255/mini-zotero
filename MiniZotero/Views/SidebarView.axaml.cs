@@ -41,5 +41,31 @@ namespace MiniZotero.Views
                 viewModel.AddDocument(Uri.UnescapeDataString(file.Path.LocalPath));
             }
         }
+
+        private async void OnConfigureWatchFolderClicked(object? sender, RoutedEventArgs e)
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel is null || DataContext is not SidebarViewModel viewModel)
+            {
+                return;
+            }
+
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
+                new FolderPickerOpenOptions
+                {
+                    Title = "Choose Watch Folder",
+                    AllowMultiple = false
+                });
+
+            var folder = folders.FirstOrDefault();
+            var folderPath = folder is null
+                ? string.Empty
+                : Uri.UnescapeDataString(folder.Path.LocalPath);
+
+            if (!string.IsNullOrWhiteSpace(folderPath))
+            {
+                viewModel.SetWatchFolder(folderPath);
+            }
+        }
     }
 }

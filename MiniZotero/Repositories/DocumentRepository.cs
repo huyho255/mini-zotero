@@ -16,10 +16,19 @@ namespace MiniZotero.Repositories
         };
 
         private readonly AppStorageService _storageService;
+        private readonly AutoTagService _autoTagService;
 
         public DocumentRepository(AppStorageService storageService)
+            : this(storageService, new AutoTagService())
+        {
+        }
+
+        public DocumentRepository(
+            AppStorageService storageService,
+            AutoTagService autoTagService)
         {
             _storageService = storageService;
+            _autoTagService = autoTagService;
         }
 
         public IReadOnlyList<DocumentItem> LoadDocuments()
@@ -36,6 +45,7 @@ namespace MiniZotero.Repositories
                 var documents = JsonSerializer.Deserialize<List<DocumentItem>>(json, JsonOptions) ?? [];
                 var changed = NormalizeDocuments(documents);
                 changed |= MigrateDocumentsToStorage(documents);
+                changed |= ApplyMissingAutoTags(documents);
 
                 if (changed)
                 {
@@ -68,6 +78,7 @@ namespace MiniZotero.Repositories
 
             if (existingDocument is not null)
             {
+                ApplyAutoTags(existingDocument, normalizedSourcePath);
                 return existingDocument;
             }
 
@@ -84,6 +95,8 @@ namespace MiniZotero.Repositories
                 lastOpenedAt: null,
                 lastReadPage: 1);
 
+            ApplyAutoTags(document, normalizedSourcePath);
+
             return document;
         }
 
@@ -95,8 +108,9 @@ namespace MiniZotero.Repositories
             if (!documents.Any(existingDocument => existingDocument.Id == document.Id))
             {
                 documents.Add(document);
-                SaveDocuments(documents);
             }
+
+            SaveDocuments(documents);
 
             return document;
         }
@@ -105,6 +119,28 @@ namespace MiniZotero.Repositories
         {
             var json = JsonSerializer.Serialize(documents, JsonOptions);
             File.WriteAllText(_storageService.LibraryFilePath, json);
+        }
+
+        public void DeleteStoredPdfFile(DocumentItem document)
+        {
+            if (string.IsNullOrWhiteSpace(document.FilePath))
+            {
+                return;
+            }
+
+            try
+            {
+                if (File.Exists(document.FilePath) && IsStoredPdfPath(document.FilePath))
+                {
+                    File.Delete(document.FilePath);
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
         }
 
         private static bool IsSamePath(string? left, string right)
@@ -158,6 +194,49 @@ namespace MiniZotero.Repositories
                 StringComparison.OrdinalIgnoreCase);
         }
 
+        private bool ApplyMissingAutoTags(IEnumerable<DocumentItem> documents)
+        {
+            var changed = false;
+
+            foreach (var document in documents)
+            {
+                var sourcePath = !string.IsNullOrWhiteSpace(document.OriginalFilePath)
+                    ? document.OriginalFilePath
+                    : document.FilePath;
+
+                if (string.IsNullOrWhiteSpace(sourcePath))
+                {
+                    continue;
+                }
+
+                changed |= ApplyAutoTags(document, sourcePath);
+            }
+
+            return changed;
+        }
+
+        private bool ApplyAutoTags(DocumentItem document, string sourceFilePath)
+        {
+            document.Tags ??= [];
+            var changed = false;
+
+            foreach (var tag in _autoTagService.GenerateTags(sourceFilePath, document.Title))
+            {
+                var exists = document.Tags.Any(existingTag =>
+                    string.Equals(existingTag, tag, StringComparison.OrdinalIgnoreCase));
+
+                if (exists)
+                {
+                    continue;
+                }
+
+                document.Tags.Add(tag);
+                changed = true;
+            }
+
+            return changed;
+        }
+
         private static bool NormalizeDocuments(IEnumerable<DocumentItem> documents)
         {
             var changed = false;
@@ -186,6 +265,30 @@ namespace MiniZotero.Repositories
                 if (document.LastReadPage < 1)
                 {
                     document.LastReadPage = 1;
+                    changed = true;
+                }
+
+                if (document.LastZoomPercent < 50 || document.LastZoomPercent > 400)
+                {
+                    document.LastZoomPercent = 120;
+                    changed = true;
+                }
+
+                if (document.Tags is null)
+                {
+                    document.Tags = [];
+                    changed = true;
+                }
+
+                if (!document.IsDeleted && document.DeletedAt is not null)
+                {
+                    document.DeletedAt = null;
+                    changed = true;
+                }
+
+                if (document.IsDeleted && document.DeletedAt is null)
+                {
+                    document.DeletedAt = DateTimeOffset.Now;
                     changed = true;
                 }
             }

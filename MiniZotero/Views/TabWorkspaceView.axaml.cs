@@ -37,5 +37,26 @@ namespace MiniZotero.Views
                 viewModel.PdfViewer.SetSelectTool();
             }
         }
+
+        private void OnHighlightToolClicked(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is not TabWorkspaceViewModel viewModel)
+            {
+                return;
+            }
+
+            if (sender is ToggleButton { IsChecked: false })
+            {
+                viewModel.PdfViewer.SetSelectTool();
+                return;
+            }
+
+            if (sender is ToggleButton button)
+            {
+                button.IsChecked = true;
+            }
+
+            viewModel.PdfViewer.SetHighlightTool();
+        }
     }
 }

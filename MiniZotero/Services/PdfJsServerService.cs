@@ -33,7 +33,12 @@ namespace MiniZotero.Services
             Task.Run(ListenLoop);
         }
 
-        public string RegisterPdf(string documentKey, string filePath, int pageNumber = 1)
+        public string RegisterPdf(
+            string documentKey,
+            string filePath,
+            int pageNumber = 1,
+            int zoomPercent = 120,
+            string? reloadToken = null)
         {
             _pdfFiles[documentKey] = filePath;
 
@@ -42,12 +47,16 @@ namespace MiniZotero.Services
                 pageNumber = 1;
             }
 
+            zoomPercent = Math.Clamp(zoomPercent, 50, 400);
+
             string pdfUrl = $"{BaseUrl}/pdf/{Uri.EscapeDataString(documentKey)}";
 
             string viewerUrl =
                 $"{BaseUrl}/viewer/index.html" +
                 $"?file={Uri.EscapeDataString(pdfUrl)}" +
-                $"#page={pageNumber}&zoom=120";
+                $"&documentId={Uri.EscapeDataString(documentKey)}" +
+                $"&v={Uri.EscapeDataString(reloadToken ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString())}" +
+                $"#page={pageNumber}&zoom={zoomPercent}";
 
             return viewerUrl;
         }
