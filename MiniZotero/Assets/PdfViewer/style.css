@@ -34,6 +34,10 @@ body {
     cursor: text;
 }
 
+#viewer.toolHighlight {
+    cursor: text;
+}
+
 #viewer.toolHand {
     cursor: grab;
 }
@@ -166,6 +170,15 @@ body {
     background: rgba(245, 158, 11, 0.28);
     border-radius: 2px;
     pointer-events: none;
+}
+
+.selectionDragBox {
+    position: absolute;
+    border: 1px solid rgba(59, 130, 246, 0.7);
+    background: rgba(59, 130, 246, 0.08);
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 10;
 }
 
 .error {

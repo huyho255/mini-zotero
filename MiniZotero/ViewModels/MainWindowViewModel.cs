@@ -8,9 +8,35 @@ namespace MiniZotero.ViewModels
         public MainWindowViewModel()
         {
             var storageService = new AppStorageService();
-            var documentRepository = new DocumentRepository(storageService);
+            var autoTagService = new AutoTagService();
+            var documentRepository = new DocumentRepository(storageService, autoTagService);
+            var noteRepository = new NoteRepository(storageService);
+            var highlightRepository = new HighlightRepository(storageService);
+            var settingsRepository = new AppSettingsRepository(storageService);
+            var watchFolderService = new WatchFolderService();
 
-            Sidebar = new SidebarViewModel(documentRepository);
+            Sidebar = new SidebarViewModel(
+                documentRepository,
+                settingsRepository,
+                watchFolderService);
+            Notes = new NotePreviewPanelViewModel(noteRepository, highlightRepository);
+            Workspace = new TabWorkspaceViewModel(document =>
+                documentRepository.SaveDocuments(Sidebar.Documents));
+
+            Workspace.PdfViewer.HighlightCreated += (text, pageNumber, rects) =>
+            {
+                Notes.AddHighlightFromViewer(text, pageNumber, rects);
+            };
+
+            Notes.HighlightsChanged += () =>
+            {
+                Workspace.PdfViewer.LoadHighlightsIntoViewer(Notes.Highlights);
+            };
+
+            Notes.HighlightSelected += highlight =>
+            {
+                Workspace.PdfViewer.NavigateToHighlight(highlight);
+            };
 
             Sidebar.PropertyChanged += (_, e) =>
             {
@@ -19,14 +45,15 @@ namespace MiniZotero.ViewModels
                 {
                     Workspace.OpenDocument(document);
                     Notes.OpenDocument(document);
+                    Workspace.PdfViewer.LoadHighlightsIntoViewer(Notes.Highlights);
                 }
             };
         }
 
         public SidebarViewModel Sidebar { get; }
 
-        public TabWorkspaceViewModel Workspace { get; } = new();
+        public TabWorkspaceViewModel Workspace { get; }
 
-        public NotePreviewPanelViewModel Notes { get; } = new();
+        public NotePreviewPanelViewModel Notes { get; }
     }
 }

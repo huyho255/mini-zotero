@@ -7,7 +7,10 @@ namespace MiniZotero.Services
     {
         private const string AppFolderName = "MiniZotero";
         private const string LibraryFileName = "library.json";
+        private const string SettingsFileName = "settings.json";
         private const string PdfFolderName = "pdfs";
+        private const string NotesFolderName = "notes";
+        private const string HighlightsFolderName = "highlights";
 
         public AppStorageService()
         {
@@ -17,6 +20,8 @@ namespace MiniZotero.Services
 
             Directory.CreateDirectory(RootPath);
             Directory.CreateDirectory(PdfFolderPath);
+            Directory.CreateDirectory(NotesFolderPath);
+            Directory.CreateDirectory(HighlightsFolderPath);
         }
 
         public string RootPath { get; }
@@ -25,6 +30,12 @@ namespace MiniZotero.Services
 
         public string PdfFolderPath => Path.Combine(RootPath, PdfFolderName);
 
+        public string NotesFolderPath => Path.Combine(RootPath, NotesFolderName);
+
+        public string HighlightsFolderPath => Path.Combine(RootPath, HighlightsFolderName);
+
         public string LibraryFilePath => Path.Combine(RootPath, LibraryFileName);
+
+        public string SettingsFilePath => Path.Combine(RootPath, SettingsFileName);
     }
 }
