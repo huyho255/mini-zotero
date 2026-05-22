@@ -20,3 +20,4 @@ namespace MiniZotero.ViewModels
         }
     }
 }
+

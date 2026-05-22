@@ -6,114 +6,307 @@
              x:DataType="vm:SidebarViewModel">
 
     <UserControl.Styles>
-        <Style Selector="Button.SidebarItem">
+        <Style Selector="Button.SidebarIconButton">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="Foreground" Value="#AAB6C6"/>
         </Style>
-        <Style Selector="Button.SidebarItem:pointerover">
-            <Setter Property="Background" Value="#23222A"/>
-        </Style>
-        <Style Selector="TextBlock.Muted">
-            <Setter Property="Foreground" Value="#93909A"/>
+        <Style Selector="Button.SidebarIconButton:pointerover">
+            <Setter Property="Background" Value="#273242"/>
         </Style>
         <Style Selector="TextBlock.SectionTitle">
-            <Setter Property="Foreground" Value="#79747E"/>
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#8795A8"/>
+            <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="TextBlock.Muted">
+            <Setter Property="Foreground" Value="#8D9AAB"/>
+        </Style>
+        <Style Selector="Border.NavItem">
+            <Setter Property="Height" Value="31"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,0"/>
+        </Style>
+        <Style Selector="Border.NavItem.Active">
+            <Setter Property="Background" Value="#263242"/>
+        </Style>
+        <Style Selector="Border.TagChip">
+            <Setter Property="Background" Value="#202B39"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Padding" Value="9,4"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+        </Style>
+        <Style Selector="ListBox.NavigationList">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="ListBox.NavigationList ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.NavigationList ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1C2633"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="ListBox.NavigationList ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#263242"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="ListBox.NavigationList ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#263242"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="ListBox.DocumentList">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="ListBox.DocumentList ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.DocumentList ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#5D2CCB"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="ListBox.DocumentList ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1C2633"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="ListBox.DocumentList ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#5D2CCB"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="ListBox.SmartCollectionList">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="ListBox.SmartCollectionList ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.SmartCollectionList ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#5D2CCB"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="ListBox.SmartCollectionList ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1C2633"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="ListBox.SmartCollectionList ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#5D2CCB"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="ListBox.TagList">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="ListBox.TagList ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.TagList ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Background" Value="#202B39"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="ListBox.TagList ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2A3646"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="ListBox.TagList ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#5D2CCB"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="ListBox.TagList ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#5D2CCB"/>
+            <Setter Property="CornerRadius" Value="5"/>
         </Style>
     </UserControl.Styles>
 
-    <Border Background="#16151D" Padding="12">
-        <Grid RowDefinitions="Auto, Auto, *, Auto">
-            <StackPanel Grid.Row="0" Spacing="12">
-                <Grid ColumnDefinitions="Auto, *, Auto">
-                    <Border Grid.Column="0" Background="#6750A4" CornerRadius="4" Width="28" Height="28">
-                        <TextBlock Text="M"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   FontWeight="SemiBold"
-                                   Foreground="White"/>
-                    </Border>
-                    <TextBlock Grid.Column="1"
-                               Text="MiniZotero"
-                               VerticalAlignment="Center"
-                               Margin="10,0,0,0"
-                               FontSize="15"
-                               FontWeight="SemiBold"/>
-                    <Button Grid.Column="2"
-                            Content="+"
-                            Click="OnImportPdfClicked"
-                            Background="Transparent"
-                            Padding="8,2"/>
-                </Grid>
+    <Border Background="#0E151E"
+            BorderBrush="#1E2937"
+            BorderThickness="0,0,1,0">
+        <Grid RowDefinitions="48,*,Auto" Margin="12,0,12,10">
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                <Border Width="22" Height="22" CornerRadius="5" Background="#745CFF" VerticalAlignment="Center">
+                    <TextBlock Text="M"
+                               Foreground="White"
+                               FontSize="13"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Grid.Column="1"
+                           Text="MiniZotero"
+                           Foreground="#F2F6FC"
+                           FontWeight="SemiBold"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="2"
+                        Classes="SidebarIconButton"
+                        Content="&#xE10C;"
+                        Click="OnImportPdfClicked"/>
+            </Grid>
 
-                <TextBox PlaceholderText="Search documents..."
-                         Height="32"
-                         FontSize="12"
-                         VerticalContentAlignment="Center"/>
-            </StackPanel>
-
-            <StackPanel Grid.Row="1" Margin="0,18,0,0" Spacing="2">
-                <Button Classes="SidebarItem" Content="Library"/>
-                <Button Classes="SidebarItem" Content="Recent"/>
-                <Button Classes="SidebarItem" Content="Starred"/>
-                <Button Classes="SidebarItem" Content="Trash"/>
-            </StackPanel>
-
-            <Grid Grid.Row="2" Margin="0,18,0,0" RowDefinitions="Auto, *">
-                <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="5,0,5,8">
-                    <TextBlock Classes="SectionTitle" Text="DOCUMENTS"/>
-                    <TextBlock Grid.Column="1"
-                               Classes="Muted"
-                               Text="{Binding DocumentCount}"
-                               FontSize="11"/>
-                </Grid>
-
-                <Grid Grid.Row="1">
-                    <Border Background="#1E1D24"
-                            CornerRadius="6"
-                            Padding="12"
-                            IsVisible="{Binding IsEmptyViewVisible}">
-                        <TextBlock Classes="Muted"
-                                   Text="No PDFs imported yet."
-                                   FontSize="12"
-                                   TextWrapping="Wrap"/>
-                    </Border>
-
-                    <ListBox ItemsSource="{Binding Documents}"
-                             SelectedItem="{Binding SelectedDocument, Mode=TwoWay}"
-                             Background="Transparent"
-                             BorderThickness="0"
-                             IsVisible="{Binding HasDocuments}">
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
+                <StackPanel Spacing="0">
+                    <ListBox Classes="NavigationList"
+                             ItemsSource="{Binding NavigationItems}"
+                             SelectedItem="{Binding SelectedNavigationItem, Mode=TwoWay}">
                         <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="models:DocumentItem">
-                                <StackPanel Spacing="3" Margin="2,4">
-                                    <TextBlock Text="{Binding Title}"
-                                               FontSize="13"
-                                               TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding FilePath}"
-                                               Foreground="#93909A"
+                            <DataTemplate x:DataType="vm:SidebarNavigationItem">
+                                <Grid Height="31" ColumnDefinitions="Auto,*,Auto" Margin="10,0">
+                                    <TextBlock Text="{Binding Icon}"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               Foreground="#B2BECD"
+                                               FontSize="14"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Name}"
+                                               Foreground="#F2F6FC"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Margin="9,0,0,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding CountText}"
+                                               Foreground="#B7C2D1"
                                                FontSize="11"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Grid ColumnDefinitions="*,Auto" Margin="4,22,4,8">
+                        <TextBlock Text="SMART COLLECTIONS" Classes="SectionTitle"/>
+                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="18" Margin="0,-6,0,0"/>
+                    </Grid>
+
+                    <ListBox Classes="SmartCollectionList"
+                             ItemsSource="{Binding SmartCollections}"
+                             SelectedItem="{Binding SelectedSmartCollection, Mode=TwoWay}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SmartCollectionItem">
+                                <Grid Height="25" ColumnDefinitions="Auto,*,Auto" Margin="8,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Icon}"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               Foreground="{Binding IconColor}"
+                                               FontSize="13"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Name}"
+                                               Foreground="#F2F6FC"
+                                               FontSize="12"
+                                               Margin="8,0,0,0"
+                                               VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding Count}"
+                                               Foreground="#D9DFF0"
+                                               FontSize="11"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Grid Height="25" ColumnDefinitions="Auto,*" Margin="17,1,0,0">
+                        <TextBlock Text="+" Foreground="#C2CAD8" FontSize="18" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                        <TextBlock Grid.Column="1" Text="New Collection" Foreground="#C2CAD8" FontSize="12" Margin="9,0,0,0" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Grid IsVisible="{Binding HasDocuments}" RowDefinitions="Auto,*" Margin="0,14,0,0">
+                        <Grid ColumnDefinitions="*,Auto" Margin="4,0,4,8">
+                            <TextBlock Text="RECENT DOCUMENTS" Classes="SectionTitle"/>
+                            <TextBlock Grid.Column="1" Text="{Binding DocumentCount}" Foreground="#9EABBB" FontSize="11"/>
+                        </Grid>
+
+                        <ListBox Grid.Row="1"
+                                 Classes="DocumentList"
+                                 ItemsSource="{Binding Documents}"
+                                 SelectedItem="{Binding SelectedDocument, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:DocumentItem">
+                                    <Border Padding="9,7">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="{Binding Title}"
+                                                       Foreground="#F2F6FC"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="12"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding FilePath}"
+                                                       Foreground="#8D9AAB"
+                                                       FontSize="10"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto" Margin="4,18,4,8">
+                        <TextBlock Text="TAGS" Classes="SectionTitle"/>
+                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="18" Margin="0,-6,0,0"/>
+                    </Grid>
+
+                    <ListBox Classes="TagList"
+                             ItemsSource="{Binding Tags}"
+                             SelectedItem="{Binding SelectedTag, Mode=TwoWay}"
+                             Margin="4,0,0,0">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TagItem">
+                                <StackPanel Orientation="Horizontal" Spacing="7" Margin="9,4">
+                                    <TextBlock Text="{Binding Name}"
+                                               Foreground="#E5ECF5"
+                                               FontSize="11"/>
+                                    <TextBlock Text="{Binding CountText}"
+                                               Foreground="#C7D2E2"
+                                               FontSize="11"/>
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                </Grid>
-            </Grid>
+                </StackPanel>
+            </ScrollViewer>
 
-            <Border Grid.Row="3" Background="#1E1D24" Padding="10" CornerRadius="6" Margin="0,15,0,0">
-                <Grid ColumnDefinitions="*, Auto">
-                    <StackPanel>
-                        <TextBlock Text="Watch Folder" FontSize="12"/>
-                        <TextBlock Classes="Muted" Text="Not configured" FontSize="11"/>
-                    </StackPanel>
-                    <Button Grid.Column="1" Content="Configure" Padding="8,4" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="2" Spacing="10">
+                <Border Background="#1C2633" CornerRadius="7" Padding="10">
+                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" Foreground="#D7DEE8" FontSize="13" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Watch Folder" Foreground="#E8EDF4" FontSize="12" FontWeight="SemiBold"/>
+                            <Ellipse Width="5" Height="5" Fill="#24E38C" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="&#xE713;" FontFamily="Segoe MDL2 Assets" Foreground="#B9C4D3" FontSize="13" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Text="Đang theo dõi: Downloads" Foreground="#9EABBB" FontSize="11" Margin="0,9,0,0"/>
+                    </Grid>
+                </Border>
+
+                <Grid RowDefinitions="4,Auto">
+                    <Border Background="#303B4A" CornerRadius="2" Height="4">
+                        <Border Background="#8B5CF6" CornerRadius="2" HorizontalAlignment="Left" Width="65"/>
+                    </Border>
+                    <TextBlock Grid.Row="1" Text="Storage  8.7 GB / 100 GB" Foreground="#8D9AAB" FontSize="10" Margin="0,8,0,0"/>
                 </Grid>
-            </Border>
+            </StackPanel>
         </Grid>
     </Border>
 </UserControl>

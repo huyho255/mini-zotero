@@ -1,0 +1,180 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #e8ecf2;
+    font-family: Segoe UI, Arial, sans-serif;
+    overflow: hidden;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+#app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#status {
+    display: none;
+}
+
+#viewer {
+    position: relative;
+    flex: 1;
+    overflow: auto;
+    padding: 24px 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#viewer.toolSelect {
+    cursor: text;
+}
+
+#viewer.toolHand {
+    cursor: grab;
+}
+
+#viewer.toolHand.panning {
+    cursor: grabbing;
+}
+
+#viewer.viewerLiveZoom .textLayer,
+.viewerLiveZoom .textLayer {
+    pointer-events: none;
+    user-select: none;
+}
+
+.page {
+    position: relative;
+    display: block;
+    margin: 0 auto 22px auto;
+    background: transparent;
+}
+
+.pageContent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: white;
+    overflow: hidden;
+    transform-origin: 0 0;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.canvasLayer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    image-rendering: auto;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 0;
+}
+
+.textLayer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    opacity: 1;
+    line-height: 1;
+    text-align: initial;
+    transform-origin: 0 0;
+    forced-color-adjust: none;
+    z-index: 2;
+    cursor: text;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.textLayer span,
+.textLayer br {
+    position: absolute;
+    color: transparent;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0% 0%;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.textLayer ::selection,
+.textLayer span::selection {
+    background: transparent !important;
+}
+
+.textLayer .markedContent {
+    display: contents;
+}
+
+.textLayer .endOfContent {
+    display: block;
+    position: absolute;
+    inset: 100% 0 0;
+    z-index: 0;
+    cursor: default;
+    user-select: none;
+}
+
+.highlightLayer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.highlightLayer .highlightItem {
+    position: absolute;
+    background: rgba(250, 204, 21, 0.34);
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+.highlightLayer .highlightItem:hover {
+    background: rgba(250, 204, 21, 0.52);
+}
+
+.highlightLayer.isInteractive {
+    z-index: 3;
+    pointer-events: auto;
+}
+
+.highlightLayer.isInteractive .highlightItem {
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.selectionOverlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.selectionOverlayRect {
+    position: absolute;
+    background: rgba(245, 158, 11, 0.28);
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+.error {
+    margin: 40px auto;
+    max-width: 520px;
+    background: white;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+}
