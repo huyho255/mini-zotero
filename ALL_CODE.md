@@ -11973,16 +11973,16 @@ namespace MiniZotero.Views
                 BorderBrush="#D5DDE7"
                 BorderThickness="0,0,1,0">
             <StackPanel Margin="4,10" Spacing="8">
-                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
+                <ToggleButton Classes="RailButton" IsChecked="True" ToolTip.Tip="Document view">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE8A5;"
                                    FontFamily="Segoe MDL2 Assets"
                                    FontSize="15"
-                                   Foreground="{Binding $parent[Button].Foreground}"
+                                   Foreground="{Binding $parent[ToggleButton].Foreground}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"/>
                     </Grid>
-                </Button>
+                </ToggleButton>
                 <ToggleButton Classes="RailButton"
                               IsChecked="{Binding ActiveTab.PdfViewer.IsHandToolActive, Mode=OneWay}"
                               Command="{Binding ActiveTab.PdfViewer.ActivateHandToolCommand}">
@@ -12022,7 +12022,14 @@ namespace MiniZotero.Views
                                    VerticalAlignment="Center"/>
                     </Grid>
                 </ToggleButton>
-                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
+                <Button Classes="RailButton" ToolTip.Tip="Pop out">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Open in new window" />
+                            <MenuItem Header="Full screen" />
+                            <MenuItem Header="Export / Share..." />
+                        </MenuFlyout>
+                    </Button.Flyout>
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE8A7;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -12032,7 +12039,16 @@ namespace MiniZotero.Views
                                    VerticalAlignment="Center"/>
                     </Grid>
                 </Button>
-                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
+                <Button Classes="RailButton" Background="#DDE5EF" ToolTip.Tip="Advanced settings">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Change font" />
+                            <MenuItem Header="View edit history" />
+                            <MenuItem Header="File information" />
+                            <MenuItem Header="-" />
+                            <MenuItem Header="Delete page" />
+                        </MenuFlyout>
+                    </Button.Flyout>
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE712;"
                                    FontFamily="Segoe MDL2 Assets"
