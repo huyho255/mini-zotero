@@ -44,6 +44,7 @@ namespace MiniZotero.Services
             builder.AppendLine($"- Original: `{document.OriginalFilePath}`");
             builder.AppendLine($"- Added: {document.AddedAt:yyyy-MM-dd HH:mm}");
             builder.AppendLine($"- Last page: {document.LastReadPage}");
+            AppendMetadata(builder, document);
             builder.AppendLine();
 
             builder.AppendLine("## Notes");
@@ -94,6 +95,34 @@ namespace MiniZotero.Services
                 .Replace("\r", "\n")
                 .Replace("\n", "\n> ")
                 .Trim();
+        }
+
+        private static void AppendMetadata(StringBuilder builder, DocumentItem document)
+        {
+            if (document.Authors.Count > 0)
+            {
+                builder.AppendLine($"- Authors: {string.Join(", ", document.Authors)}");
+            }
+
+            if (document.Year is not null)
+            {
+                builder.AppendLine($"- Year: {document.Year}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(document.Doi))
+            {
+                builder.AppendLine($"- DOI: {document.Doi}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(document.JournalOrPublisher))
+            {
+                builder.AppendLine($"- Journal/Publisher: {document.JournalOrPublisher}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(document.Abstract))
+            {
+                builder.AppendLine($"- Abstract: {document.Abstract}");
+            }
         }
     }
 }

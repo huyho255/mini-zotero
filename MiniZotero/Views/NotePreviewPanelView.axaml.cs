@@ -3,6 +3,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using MiniZotero.Helpers;
 using MiniZotero.ViewModels;
 
 namespace MiniZotero.Views
@@ -54,6 +55,76 @@ namespace MiniZotero.Views
             }
 
             viewModel.ExportActiveDocumentToMarkdown(outputPath);
+        }
+
+        private void OnHeadingClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyHeading);
+        }
+
+        private void OnBoldClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyBold);
+        }
+
+        private void OnItalicClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyItalic);
+        }
+
+        private void OnBulletListClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyBulletList);
+        }
+
+        private void OnQuoteClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyQuote);
+        }
+
+        private void OnLinkClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyLink);
+        }
+
+        private void OnNumberedListClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyNumberedList);
+        }
+
+        private void OnCodeClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyCode);
+        }
+
+        private void OnHorizontalRuleClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyHorizontalRule);
+        }
+
+        private void OnCheckboxListClicked(object? sender, RoutedEventArgs e)
+        {
+            ApplyMarkdownFormat(TextBoxMarkdownFormatter.ApplyCheckboxList);
+        }
+
+        private void ApplyMarkdownFormat(
+            Func<string, int, int, MarkdownFormatResult> formatter)
+        {
+            if (DataContext is not NotePreviewPanelViewModel viewModel ||
+                viewModel.ActiveDocument is null)
+            {
+                return;
+            }
+
+            var selectionStart = Math.Min(NoteTextBox.SelectionStart, NoteTextBox.SelectionEnd);
+            var selectionEnd = Math.Max(NoteTextBox.SelectionStart, NoteTextBox.SelectionEnd);
+            var selectionLength = selectionEnd - selectionStart;
+            var result = formatter(NoteTextBox.Text ?? string.Empty, selectionStart, selectionLength);
+
+            NoteTextBox.Text = result.Text;
+            NoteTextBox.SelectionStart = result.SelectionStart;
+            NoteTextBox.SelectionEnd = result.SelectionStart + result.SelectionLength;
+            NoteTextBox.Focus();
         }
 
         private static string MakeSafeFileName(string value)

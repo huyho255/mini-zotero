@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -136,11 +137,15 @@ namespace MiniZotero.ViewModels
 
     public partial class SidebarViewModel : ViewModelBase
     {
-        private readonly LibraryService _libraryService;
+        private readonly ILibraryService _libraryService;
+        private readonly IDocumentImportService _documentImportService;
         private readonly TagService _tagService;
-        private readonly AppSettingsRepository _settingsRepository;
+        private readonly ICollectionRepository _collectionRepository;
+        private readonly ICollectionService _collectionService;
+        private readonly IAppSettingsRepository _settingsRepository;
         private readonly WatchFolderService _watchFolderService;
         private readonly StorageUsageService _storageUsageService;
+        private readonly IFilePickerService _filePickerService;
         private readonly SidebarNavigationItem _libraryNavigationItem;
         private readonly SidebarNavigationItem _recentNavigationItem;
         private readonly SidebarNavigationItem _starredNavigationItem;
@@ -149,27 +154,44 @@ namespace MiniZotero.ViewModels
         private bool _isRebuildingTags;
 
         public SidebarViewModel()
+            : this(new ApplicationServices())
+        {
+        }
+
+        public SidebarViewModel(IApplicationServices services)
             : this(
-                CreateDefaultLibraryService(),
-                new TagService(),
-                new AppSettingsRepository(new AppStorageService()),
-                new WatchFolderService(),
-                new StorageUsageService())
+                services.LibraryService,
+                services.DocumentImportService,
+                services.TagService,
+                services.CollectionRepository,
+                services.CollectionService,
+                services.SettingsRepository,
+                services.WatchFolderService,
+                services.StorageUsageService,
+                services.FilePickerService)
         {
         }
 
         public SidebarViewModel(
-            LibraryService libraryService,
+            ILibraryService libraryService,
+            IDocumentImportService documentImportService,
             TagService tagService,
-            AppSettingsRepository settingsRepository,
+            ICollectionRepository collectionRepository,
+            ICollectionService collectionService,
+            IAppSettingsRepository settingsRepository,
             WatchFolderService watchFolderService,
-            StorageUsageService storageUsageService)
+            StorageUsageService storageUsageService,
+            IFilePickerService filePickerService)
         {
             _libraryService = libraryService;
+            _documentImportService = documentImportService;
             _tagService = tagService;
+            _collectionRepository = collectionRepository;
+            _collectionService = collectionService;
             _settingsRepository = settingsRepository;
             _watchFolderService = watchFolderService;
             _storageUsageService = storageUsageService;
+            _filePickerService = filePickerService;
             _watchFolderService.PdfDetected += OnWatchFolderPdfDetected;
 
             _libraryNavigationItem = new SidebarNavigationItem("Library", "\uE8B7", "0");
@@ -203,18 +225,13 @@ namespace MiniZotero.ViewModels
                 Documents.Add(document);
             }
 
+            foreach (var collection in _collectionRepository.LoadCollections())
+            {
+                Collections.Add(collection);
+            }
+
             RebuildTags();
             ApplyDocumentFilter();
-        }
-
-        private static LibraryService CreateDefaultLibraryService()
-        {
-            var storageService = new AppStorageService();
-            var documentRepository = new DocumentRepository(storageService, new AutoTagService());
-            var noteRepository = new NoteRepository(storageService);
-            var noteService = new NoteService(noteRepository, new MarkdownExportService());
-
-            return new LibraryService(documentRepository, noteService);
         }
 
         [ObservableProperty]
@@ -250,11 +267,17 @@ namespace MiniZotero.ViewModels
         [ObservableProperty]
         private TagItem? _selectedTag;
 
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasSelectedCollection))]
+        private CollectionItem? _selectedCollection;
+
         public ObservableCollection<SidebarNavigationItem> NavigationItems { get; } = new();
 
         public ObservableCollection<SmartCollectionItem> SmartCollections { get; } = new();
 
         public ObservableCollection<TagItem> Tags { get; } = new();
+
+        public ObservableCollection<CollectionItem> Collections { get; } = new();
 
         public ObservableCollection<DocumentItem> Documents { get; } = new();
 
@@ -271,6 +294,8 @@ namespace MiniZotero.ViewModels
         public bool HasVisibleDocuments => FilteredDocuments.Count > 0;
 
         public bool HasSelectedDocument => SelectedDocument is not null;
+
+        public bool HasSelectedCollection => SelectedCollection is not null;
 
         public bool IsEmptyViewVisible => Documents.Count == 0;
 
@@ -295,7 +320,9 @@ namespace MiniZotero.ViewModels
             HasSearchText && SearchResultDocuments.Count == 0;
 
         public string CurrentDocumentSectionTitle =>
-            SelectedSmartCollection is not null
+            SelectedCollection is not null
+                ? SelectedCollection.Name.ToUpperInvariant()
+                : SelectedSmartCollection is not null
                 ? SelectedSmartCollection.Name.ToUpperInvariant()
                 : SelectedNavigationItem?.Name switch
                 {
@@ -335,7 +362,7 @@ namespace MiniZotero.ViewModels
 
         public void AddDocument(string filePath)
         {
-            var result = _libraryService.ImportDocument(filePath, Documents);
+            var result = _documentImportService.ImportDocument(filePath, Documents);
             StatusMessage = result.Message;
 
             if (!result.Succeeded || result.Value is null)
@@ -359,7 +386,7 @@ namespace MiniZotero.ViewModels
 
             foreach (var filePath in filePaths)
             {
-                var result = _libraryService.ImportDocument(filePath, Documents);
+                var result = _documentImportService.ImportDocument(filePath, Documents);
 
                 if (!result.Succeeded || result.Value is null)
                 {
@@ -425,6 +452,11 @@ namespace MiniZotero.ViewModels
         {
             if (!_isRebuildingTags)
             {
+                if (value is not null)
+                {
+                    SelectedCollection = null;
+                }
+
                 ApplyDocumentFilter();
             }
         }
@@ -435,6 +467,7 @@ namespace MiniZotero.ViewModels
             {
                 SelectedNavigationItem = null;
                 SelectedTag = null;
+                SelectedCollection = null;
             }
 
             ApplyDocumentFilter();
@@ -509,6 +542,7 @@ namespace MiniZotero.ViewModels
             {
                 SelectedSmartCollection = null;
                 SelectedTag = null;
+                SelectedCollection = null;
             }
 
             ApplyDocumentFilter();
@@ -518,6 +552,38 @@ namespace MiniZotero.ViewModels
             OnPropertyChanged(nameof(IsTrashDocumentActionsVisible));
             OnPropertyChanged(nameof(IsTagEditorVisible));
             OnPropertyChanged(nameof(CurrentDocumentSectionTitle));
+        }
+
+        partial void OnSelectedCollectionChanged(CollectionItem? value)
+        {
+            if (value is not null)
+            {
+                SelectedNavigationItem = null;
+                SelectedSmartCollection = null;
+                SelectedTag = null;
+            }
+
+            ApplyDocumentFilter();
+            ApplySearchFilter();
+            OnPropertyChanged(nameof(CurrentDocumentSectionTitle));
+        }
+
+        [RelayCommand]
+        private async Task ImportPdfFilesAsync()
+        {
+            var filePaths = await _filePickerService.PickPdfFilesAsync();
+            AddDocuments(filePaths);
+        }
+
+        [RelayCommand]
+        private async Task ConfigureWatchFolderAsync()
+        {
+            var folderPath = await _filePickerService.PickWatchFolderAsync();
+
+            if (!string.IsNullOrWhiteSpace(folderPath))
+            {
+                SetWatchFolder(folderPath);
+            }
         }
 
         [RelayCommand]
@@ -626,8 +692,68 @@ namespace MiniZotero.ViewModels
             SelectedDocument = null;
 
             _libraryService.DeleteForever(document, Documents);
+            foreach (var collection in Collections)
+            {
+                _collectionService.RemoveDocumentFromCollection(document, collection);
+            }
+            SaveCollections();
 
             RefreshAfterDocumentChange();
+        }
+
+        [RelayCommand]
+        private void CreateCollection()
+        {
+            var collection = _collectionService.CreateCollection("New Collection", Collections);
+
+            Collections.Add(collection);
+            SelectedCollection = collection;
+            SaveCollections();
+            StatusMessage = $"Created collection {collection.Name}.";
+        }
+
+        [RelayCommand]
+        private void DeleteSelectedCollection()
+        {
+            if (SelectedCollection is null)
+            {
+                return;
+            }
+
+            var collection = SelectedCollection;
+            SelectedCollection = null;
+            _collectionService.DeleteCollection(collection, Collections);
+            SaveCollections();
+            ApplyDocumentFilter();
+            StatusMessage = $"Deleted collection {collection.Name}.";
+        }
+
+        [RelayCommand]
+        private void AddSelectedDocumentToCollection()
+        {
+            if (SelectedDocument is null || SelectedCollection is null)
+            {
+                return;
+            }
+
+            _collectionService.AddDocumentToCollection(SelectedDocument, SelectedCollection);
+            SaveCollections();
+            ApplyDocumentFilter();
+            StatusMessage = $"Added to {SelectedCollection.Name}.";
+        }
+
+        [RelayCommand]
+        private void RemoveSelectedDocumentFromCollection()
+        {
+            if (SelectedDocument is null || SelectedCollection is null)
+            {
+                return;
+            }
+
+            _collectionService.RemoveDocumentFromCollection(SelectedDocument, SelectedCollection);
+            SaveCollections();
+            ApplyDocumentFilter();
+            StatusMessage = $"Removed from {SelectedCollection.Name}.";
         }
 
         private void PersistDocumentsAndRefresh(bool rebuildTags = true)
@@ -648,6 +774,11 @@ namespace MiniZotero.ViewModels
             ApplySearchFilter();
         }
 
+        private void SaveCollections()
+        {
+            _collectionRepository.SaveCollections(Collections);
+        }
+
         private bool ShouldRefreshDocumentListAfterOpen()
         {
             return SelectedNavigationItem?.Name == "Recent" ||
@@ -659,11 +790,7 @@ namespace MiniZotero.ViewModels
             FilteredDocuments.Clear();
             DocumentExplorerItems.Clear();
 
-            var documents = _libraryService.ApplySmartCollectionFilter(
-                _libraryService.GetNavigationDocuments(
-                    Documents,
-                    SelectedNavigationItem?.Name),
-                SelectedSmartCollection?.Kind);
+            var documents = GetCurrentDocumentSource();
 
             if (SelectedTag is not null)
             {
@@ -781,11 +908,7 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            var documents = _libraryService.ApplySmartCollectionFilter(
-                    _libraryService.GetNavigationDocuments(
-                        Documents,
-                        SelectedNavigationItem?.Name),
-                    SelectedSmartCollection?.Kind)
+            var documents = GetCurrentDocumentSource()
                 .Where(document => _libraryService.MatchesSearch(document, query))
                 .OrderBy(document => document.Title);
 
@@ -795,6 +918,22 @@ namespace MiniZotero.ViewModels
             }
 
             NotifyDocumentStateChanged();
+        }
+
+        private IEnumerable<DocumentItem> GetCurrentDocumentSource()
+        {
+            if (SelectedCollection is not null)
+            {
+                return _collectionService.GetDocumentsInCollection(
+                    SelectedCollection,
+                    Documents);
+            }
+
+            return _libraryService.ApplySmartCollectionFilter(
+                _libraryService.GetNavigationDocuments(
+                    Documents,
+                    SelectedNavigationItem?.Name),
+                SelectedSmartCollection?.Kind);
         }
 
         private void NotifyDocumentStateChanged()

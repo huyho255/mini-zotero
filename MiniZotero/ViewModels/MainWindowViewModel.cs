@@ -1,55 +1,62 @@
-using MiniZotero.Repositories;
-using MiniZotero.Services;
+using System;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using MiniZotero.Models;
+using MiniZotero.Services;
 
 namespace MiniZotero.ViewModels
 {
     public partial class MainWindowViewModel : ViewModelBase
     {
+        private readonly IApplicationServices _services;
+        private readonly ILibraryService _libraryService;
+
         [ObservableProperty]
         private string _statusMessage = "Ready";
 
+        public event Action<SettingsDialogViewModel>? OpenSettingsRequested;
+
         public MainWindowViewModel()
+            : this(new ApplicationServices())
         {
-            var storageService = new AppStorageService();
-            var autoTagService = new AutoTagService();
-            var documentRepository = new DocumentRepository(storageService, autoTagService);
-            var noteRepository = new NoteRepository(storageService);
-            var highlightRepository = new HighlightRepository(storageService);
-            var settingsRepository = new AppSettingsRepository(storageService);
-            var watchFolderService = new WatchFolderService();
-            var markdownExportService = new MarkdownExportService();
-            var storageUsageService = new StorageUsageService();
-            var noteService = new NoteService(noteRepository, markdownExportService);
-            var highlightService = new HighlightService(highlightRepository);
-            var libraryService = new LibraryService(documentRepository, noteService);
-            var tagService = new TagService();
+        }
+
+        public MainWindowViewModel(IApplicationServices services)
+        {
+            _services = services;
+            _libraryService = services.LibraryService;
 
             Sidebar = new SidebarViewModel(
-                libraryService,
-                tagService,
-                settingsRepository,
-                watchFolderService,
-                storageUsageService);
+                services.LibraryService,
+                services.DocumentImportService,
+                services.TagService,
+                services.CollectionRepository,
+                services.CollectionService,
+                services.SettingsRepository,
+                services.WatchFolderService,
+                services.StorageUsageService,
+                services.FilePickerService);
             Notes = new NotePreviewPanelViewModel(
-                noteService,
-                highlightService);
+                services.NoteService,
+                services.HighlightService);
             Workspace = new TabWorkspaceViewModel(document =>
-                libraryService.SaveDocuments(Sidebar.Documents));
+                _libraryService.SaveDocuments(Sidebar.Documents),
+                services.PdfService);
 
-            Workspace.PdfViewer.HighlightCreated += (text, pageNumber, rects) =>
+            Workspace.HighlightCreated += (text, pageNumber, rects) =>
             {
                 Notes.AddHighlightFromViewer(text, pageNumber, rects);
             };
 
             Notes.HighlightsChanged += () =>
             {
-                Workspace.PdfViewer.LoadHighlightsIntoViewer(Notes.Highlights);
+                Workspace.ActivePdfViewer?.LoadHighlightsIntoViewer(Notes.Highlights);
             };
 
             Notes.HighlightSelected += highlight =>
             {
-                Workspace.PdfViewer.NavigateToHighlight(highlight);
+                Workspace.ActivePdfViewer?.NavigateToHighlight(highlight);
             };
 
             Notes.PropertyChanged += (_, e) =>
@@ -66,6 +73,16 @@ namespace MiniZotero.ViewModels
                 {
                     OnPropertyChanged(nameof(OpenDocumentCount));
                     OnPropertyChanged(nameof(DocumentsOpenText));
+
+                    if (Workspace.ActiveDocument is null)
+                    {
+                        Notes.ClearDocument();
+                    }
+                    else
+                    {
+                        Notes.OpenDocument(Workspace.ActiveDocument);
+                        Workspace.ActivePdfViewer?.LoadHighlightsIntoViewer(Notes.Highlights);
+                    }
                 }
             };
 
@@ -79,9 +96,8 @@ namespace MiniZotero.ViewModels
                 if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
                     Sidebar.SelectedDocument is { } document)
                 {
+                    ApplyDefaultZoomForUnreadDocument(document);
                     Workspace.OpenDocument(document);
-                    Notes.OpenDocument(document);
-                    Workspace.PdfViewer.LoadHighlightsIntoViewer(Notes.Highlights);
                 }
             };
         }
@@ -101,5 +117,48 @@ namespace MiniZotero.ViewModels
 
         public string LibraryStatusText => "Local library";
 
+        [RelayCommand]
+        private void OpenSettings()
+        {
+            var settings = _services.SettingsRepository.LoadSettings();
+            OpenSettingsRequested?.Invoke(new SettingsDialogViewModel(
+                settings,
+                _services.StorageService.RootPath,
+                _services.SettingsRepository,
+                ApplySettings,
+                ClearTrash));
+        }
+
+        private void ApplySettings(AppSettings settings)
+        {
+            if (!string.IsNullOrWhiteSpace(settings.WatchFolderPath))
+            {
+                Sidebar.SetWatchFolder(settings.WatchFolderPath);
+            }
+
+            StatusMessage = "Settings saved.";
+        }
+
+        private void ApplyDefaultZoomForUnreadDocument(DocumentItem document)
+        {
+            if (document.LastOpenedAt is not null)
+            {
+                return;
+            }
+
+            var settings = _services.SettingsRepository.LoadSettings();
+            document.LastZoomPercent = Math.Clamp(settings.DefaultPdfZoomPercent, 50, 400);
+        }
+
+        private void ClearTrash()
+        {
+            foreach (var document in Sidebar.Documents.Where(document => document.IsDeleted).ToList())
+            {
+                _libraryService.DeleteForever(document, Sidebar.Documents);
+            }
+
+            _libraryService.SaveDocuments(Sidebar.Documents);
+            StatusMessage = "Trash cleared.";
+        }
     }
 }

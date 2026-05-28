@@ -6,11 +6,11 @@ using MiniZotero.Repositories;
 
 namespace MiniZotero.Services
 {
-    public sealed class HighlightService
+    public sealed class HighlightService : IHighlightService
     {
-        private readonly HighlightRepository _highlightRepository;
+        private readonly IHighlightRepository _highlightRepository;
 
-        public HighlightService(HighlightRepository highlightRepository)
+        public HighlightService(IHighlightRepository highlightRepository)
         {
             _highlightRepository = highlightRepository;
         }

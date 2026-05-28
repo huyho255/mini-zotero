@@ -14,7 +14,7 @@ namespace MiniZotero.Tests
         public void LibraryServiceImportSkipsDuplicate()
         {
             using var directory = new TemporaryDirectory();
-            var service = CreateLibraryService(directory, out _);
+            var service = CreateDocumentImportService(directory);
             var documents = new System.Collections.Generic.List<DocumentItem>();
             var pdfPath = Path.Combine(directory.Path, "doc.pdf");
             File.WriteAllBytes(pdfPath, [1, 2, 3]);
@@ -33,10 +33,11 @@ namespace MiniZotero.Tests
         {
             using var directory = new TemporaryDirectory();
             var service = CreateLibraryService(directory, out _);
+            var importService = CreateDocumentImportService(directory);
             var documents = new System.Collections.Generic.List<DocumentItem>();
             var pdfPath = Path.Combine(directory.Path, "doc.pdf");
             File.WriteAllBytes(pdfPath, [1, 2, 3]);
-            var document = service.ImportDocument(pdfPath, documents).Value!.Document;
+            var document = importService.ImportDocument(pdfPath, documents).Value!.Document;
 
             service.MoveToTrash(document, documents);
             Assert.True(document.IsDeleted);
@@ -159,6 +160,14 @@ namespace MiniZotero.Tests
                 new MarkdownExportService());
 
             return new LibraryService(documentRepository, noteService);
+        }
+
+        private static DocumentImportService CreateDocumentImportService(TemporaryDirectory directory)
+        {
+            var storage = new AppStorageService(Path.Combine(directory.Path, "app"));
+            var documentRepository = new DocumentRepository(storage, new AutoTagService());
+
+            return new DocumentImportService(documentRepository);
         }
     }
 }

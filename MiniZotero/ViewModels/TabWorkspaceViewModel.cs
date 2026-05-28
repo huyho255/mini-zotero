@@ -1,33 +1,131 @@
 using System;
+using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MiniZotero.Models;
+using MiniZotero.Services;
 
 namespace MiniZotero.ViewModels
 {
     public partial class TabWorkspaceViewModel : ViewModelBase
     {
+        private static readonly IPdfService DefaultPdfService = new PdfService();
+        private readonly Action<DocumentItem> _persistReadingState;
+        private readonly IPdfService _pdfService;
+
         public TabWorkspaceViewModel()
             : this(_ => { })
         {
         }
 
         public TabWorkspaceViewModel(Action<DocumentItem> persistReadingState)
+            : this(persistReadingState, DefaultPdfService)
         {
-            PdfViewer = new PdfViewerViewModel(persistReadingState);
+        }
+
+        public TabWorkspaceViewModel(
+            Action<DocumentItem> persistReadingState,
+            IPdfService pdfService)
+        {
+            _persistReadingState = persistReadingState;
+            _pdfService = pdfService;
         }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsEmptyViewVisible))]
-        private DocumentItem? _activeDocument;
+        [NotifyPropertyChangedFor(nameof(ActiveDocument))]
+        [NotifyPropertyChangedFor(nameof(ActivePdfViewer))]
+        private DocumentTabViewModel? _activeTab;
 
-        public PdfViewerViewModel PdfViewer { get; }
+        public ObservableCollection<DocumentTabViewModel> OpenTabs { get; } = new();
 
-        public bool IsEmptyViewVisible => ActiveDocument is null;
+        public DocumentItem? ActiveDocument => ActiveTab?.Document;
+
+        public PdfViewerViewModel? ActivePdfViewer => ActiveTab?.PdfViewer;
+
+        public bool IsEmptyViewVisible => ActiveTab is null;
+
+        public event Action<string, int, System.Collections.Generic.IReadOnlyList<HighlightRect>>? HighlightCreated;
 
         public void OpenDocument(DocumentItem document)
         {
-            ActiveDocument = document;
-            PdfViewer.LoadDocument(document);
+            var existingTab = OpenTabs.FirstOrDefault(tab =>
+                string.Equals(tab.Document.Id, document.Id, StringComparison.OrdinalIgnoreCase));
+
+            if (existingTab is not null)
+            {
+                ActiveTab = existingTab;
+                return;
+            }
+
+            var tab = new DocumentTabViewModel(document, _persistReadingState, _pdfService);
+            tab.PdfViewer.HighlightCreated += OnTabHighlightCreated;
+            OpenTabs.Add(tab);
+            ActiveTab = tab;
+        }
+
+        public void CloseTab(DocumentTabViewModel? tab)
+        {
+            if (tab is null)
+            {
+                return;
+            }
+
+            var tabIndex = OpenTabs.IndexOf(tab);
+            tab.PdfViewer.HighlightCreated -= OnTabHighlightCreated;
+            tab.PdfViewer.ClearDocument();
+            OpenTabs.Remove(tab);
+
+            if (ActiveTab != tab)
+            {
+                return;
+            }
+
+            if (OpenTabs.Count == 0)
+            {
+                ActiveTab = null;
+                return;
+            }
+
+            ActiveTab = OpenTabs[Math.Clamp(tabIndex, 0, OpenTabs.Count - 1)];
+        }
+
+        [RelayCommand]
+        private void SetActiveTab(DocumentTabViewModel? tab)
+        {
+            if (tab is not null)
+            {
+                ActiveTab = tab;
+            }
+        }
+
+        [RelayCommand]
+        private void CloseDocumentTab(DocumentTabViewModel? tab)
+        {
+            CloseTab(tab);
+        }
+
+        [RelayCommand]
+        private void CloseActiveDocument()
+        {
+            CloseTab(ActiveTab);
+        }
+
+        public void ClearAllTabs()
+        {
+            foreach (var tab in OpenTabs.ToList())
+            {
+                CloseTab(tab);
+            }
+        }
+
+        private void OnTabHighlightCreated(
+            string text,
+            int pageNumber,
+            System.Collections.Generic.IReadOnlyList<HighlightRect> rects)
+        {
+            HighlightCreated?.Invoke(text, pageNumber, rects);
         }
     }
 }

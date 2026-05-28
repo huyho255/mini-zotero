@@ -26,8 +26,13 @@ body {
     overflow: auto;
     padding: 24px 0;
     box-sizing: border-box;
+    scrollbar-width: none;
     user-select: none;
     -webkit-user-select: none;
+}
+
+#viewer::-webkit-scrollbar {
+    display: none;
 }
 
 #viewer.toolSelect {
@@ -156,6 +161,26 @@ body {
 .highlightLayer.isInteractive .highlightItem {
     cursor: pointer;
     pointer-events: auto;
+}
+
+.searchLayer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.searchLayer .searchItem {
+    position: absolute;
+    background: rgba(56, 189, 248, 0.32);
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+.searchLayer .searchItem.active {
+    background: rgba(14, 165, 233, 0.48);
+    outline: 1px solid rgba(2, 132, 199, 0.7);
 }
 
 .selectionOverlay {

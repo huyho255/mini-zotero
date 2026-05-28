@@ -28,6 +28,10 @@
         <Style Selector="Button.PanelIconButton:pointerover">
             <Setter Property="Background" Value="#F1F5F9"/>
         </Style>
+        <Style Selector="Button.PanelIconButton:disabled">
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+        </Style>
         <Style Selector="Border.PanelZoomChip">
             <Setter Property="Background" Value="#F8FAFC"/>
             <Setter Property="BorderBrush" Value="#D5DDE7"/>
@@ -67,6 +71,45 @@
         <Style Selector="Button.FormatButton:pointerover">
             <Setter Property="Background" Value="#F1F5F9"/>
         </Style>
+        <Style Selector="Button.FormatButton:disabled">
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+        </Style>
+        <Style Selector="TextBox.NoteEditor">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#111827"/>
+            <Setter Property="CaretBrush" Value="#111827"/>
+            <Setter Property="SelectionBrush" Value="#BFDBFE"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="TextBox.NoteEditor:pointerover">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#111827"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.NoteEditor:focus">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#111827"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.NoteEditor:focus-within">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#111827"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.NoteEditor /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.NoteEditor:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.NoteEditor:focus-within /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
     </UserControl.Styles>
 
     <Grid Background="#E6EBF2" RowDefinitions="280,6,*">
@@ -86,16 +129,16 @@
                                VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                         <Border Classes="PanelZoomChip">
-                            <TextBlock Text="100%" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding NoteZoomDisplayText}" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Button Classes="PanelIconButton" Content="&#xE738;"/>
-                        <Button Classes="PanelIconButton" Content="&#xE710;"/>
-                        <Button Classes="PanelIconButton" Content="&#xE8A7;"/>
+                        <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutNoteCommand}" ToolTip.Tip="Zoom note out"/>
+                        <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInNoteCommand}" ToolTip.Tip="Zoom note in"/>
+                        <Button Classes="PanelIconButton" Content="&#xE8A7;" Command="{Binding ResetNoteZoomCommand}" ToolTip.Tip="Reset note zoom"/>
                         <Button Classes="ExportButton"
                                 Content="Export"
                                 Click="OnExportMarkdownClicked"
                                 IsVisible="{Binding HasDocument}"/>
-                        <Button Classes="PanelIconButton" Content="&#xE713;"/>
+                        <Button Classes="PanelIconButton" Content="&#xE713;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
                     </StackPanel>
                 </Grid>
 
@@ -104,29 +147,28 @@
                         BorderThickness="0,1,0,1"
                         Padding="12,0">
                     <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                        <Button Classes="FormatButton" Content="H" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="B" FontWeight="Bold" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="I" FontStyle="Italic" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="&#xE943;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="&#xE9D5;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="&#xE7C3;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="&#xE8A5;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
-                        <Button Classes="FormatButton" Content="&#xE80A;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="H" ToolTip.Tip="Heading" Click="OnHeadingClicked"/>
+                        <Button Classes="FormatButton" Content="B" FontWeight="Bold" ToolTip.Tip="Bold" Click="OnBoldClicked"/>
+                        <Button Classes="FormatButton" Content="I" FontStyle="Italic" ToolTip.Tip="Italic" Click="OnItalicClicked"/>
+                        <Button Classes="FormatButton" Content="Q" ToolTip.Tip="Quote" Click="OnQuoteClicked"/>
+                        <Button Classes="FormatButton" Content="-" ToolTip.Tip="Bullet list" Click="OnBulletListClicked"/>
+                        <Button Classes="FormatButton" Content="[]" ToolTip.Tip="Link" Click="OnLinkClicked"/>
+                        <Button Classes="FormatButton" Content="1." ToolTip.Tip="Numbered list" Click="OnNumberedListClicked"/>
+                        <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Code" Click="OnCodeClicked"/>
+                        <Button Classes="FormatButton" Content="---" ToolTip.Tip="Horizontal rule" Click="OnHorizontalRuleClicked"/>
+                        <Button Classes="FormatButton" Content="☐" ToolTip.Tip="Checkbox list" Click="OnCheckboxListClicked"/>
+                        <Button Classes="FormatButton" Content="&#xE80A;" FontFamily="Segoe MDL2 Assets" IsEnabled="False" ToolTip.Tip="Coming soon"/>
                     </StackPanel>
                 </Border>
 
                 <Grid Grid.Row="2">
-                    <TextBox Text="{Binding NoteText, Mode=TwoWay}"
+                    <TextBox x:Name="NoteTextBox"
+                             Classes="NoteEditor"
+                             Text="{Binding NoteText, Mode=TwoWay}"
                              AcceptsReturn="True"
                              TextWrapping="Wrap"
-                             Background="White"
-                             Foreground="#111827"
-                             BorderThickness="0"
                              Padding="16"
-                             FontSize="13"
+                             FontSize="{Binding NoteEditorFontSize}"
                              PlaceholderText="Ghi chú nhanh bằng Markdown..."
                              IsVisible="{Binding HasDocument}"/>
 
@@ -183,11 +225,11 @@
                                VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                         <Border Classes="PanelZoomChip">
-                            <TextBlock Text="100%" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding PreviewZoomDisplayText}" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Button Classes="PanelIconButton" Content="&#xE738;"/>
-                        <Button Classes="PanelIconButton" Content="&#xE710;"/>
-                        <Button Classes="PanelIconButton" Content="&#xE713;"/>
+                        <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutPreviewCommand}" ToolTip.Tip="Zoom preview out"/>
+                        <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInPreviewCommand}" ToolTip.Tip="Zoom preview in"/>
+                        <Button Classes="PanelIconButton" Content="&#xE713;" Command="{Binding ResetPreviewZoomCommand}" ToolTip.Tip="Reset preview zoom"/>
                     </StackPanel>
                 </Grid>
 
@@ -253,7 +295,7 @@
                                                     <TextBlock Text="{Binding Text}"
                                                                TextWrapping="Wrap"
                                                                MaxLines="4"
-                                                               FontSize="12"/>
+                                                               FontSize="{Binding #Root.DataContext.PreviewFontSize}"/>
                                                 </Button>
 
                                                 <Button Grid.Row="0"

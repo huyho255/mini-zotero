@@ -3,7 +3,7 @@ using MiniZotero.Services;
 
 namespace MiniZotero.Repositories
 {
-    public sealed class AppSettingsRepository
+    public sealed class AppSettingsRepository : IAppSettingsRepository
     {
         private readonly AppStorageService _storageService;
         private readonly JsonFileStore _jsonFileStore;

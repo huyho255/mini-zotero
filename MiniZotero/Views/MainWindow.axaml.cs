@@ -1,8 +1,7 @@
 using System;
-using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
-using Avalonia.Platform.Storage;
+using Avalonia.Input;
 using MiniZotero.ViewModels;
 
 namespace MiniZotero.Views
@@ -12,32 +11,59 @@ namespace MiniZotero.Views
         public MainWindow()
         {
             InitializeComponent();
+            DataContextChanged += OnDataContextChanged;
         }
 
-        private async void OnImportPdfClicked(object? sender, RoutedEventArgs e)
+        private MainWindowViewModel? BoundViewModel { get; set; }
+
+        private void OnDataContextChanged(object? sender, EventArgs e)
         {
-            if (DataContext is not MainWindowViewModel viewModel)
+            if (BoundViewModel is not null)
+            {
+                BoundViewModel.OpenSettingsRequested -= OnOpenSettingsRequested;
+            }
+
+            BoundViewModel = DataContext as MainWindowViewModel;
+
+            if (BoundViewModel is not null)
+            {
+                BoundViewModel.OpenSettingsRequested += OnOpenSettingsRequested;
+            }
+        }
+
+        private async void OnOpenSettingsRequested(SettingsDialogViewModel viewModel)
+        {
+            var dialog = new SettingsDialog
+            {
+                DataContext = viewModel
+            };
+
+            await dialog.ShowDialog<bool>(this);
+        }
+
+        private void OnTabStripPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+        {
+            var scrollDelta = Math.Abs(e.Delta.X) > 0
+                ? -e.Delta.X
+                : -e.Delta.Y;
+
+            if (Math.Abs(scrollDelta) == 0)
             {
                 return;
             }
 
-            var pdfFiles = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Import PDF",
-                AllowMultiple = true,
-                FileTypeFilter =
-                [
-                    new FilePickerFileType("PDF documents")
-                    {
-                        Patterns = ["*.pdf"],
-                        MimeTypes = ["application/pdf"]
-                    }
-                ]
-            });
+            var maximumOffset = Math.Max(
+                0,
+                TabStripScrollViewer.Extent.Width - TabStripScrollViewer.Viewport.Width);
+            var nextOffset = Math.Clamp(
+                TabStripScrollViewer.Offset.X + scrollDelta * 64,
+                0,
+                maximumOffset);
 
-            viewModel.Sidebar.AddDocuments(pdfFiles
-                .Where(file => file.Path.IsFile)
-                .Select(file => Uri.UnescapeDataString(file.Path.LocalPath)));
+            TabStripScrollViewer.Offset = new Vector(
+                nextOffset,
+                TabStripScrollViewer.Offset.Y);
+            e.Handled = true;
         }
     }
 }

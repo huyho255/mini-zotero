@@ -13,6 +13,7 @@
         MinWidth="1120"
         MinHeight="720"
         x:Class="MiniZotero.Views.MainWindow"
+        x:Name="Root"
         x:DataType="vm:MainWindowViewModel"
         Title="MiniZotero"
         Background="#0B1118"
@@ -74,46 +75,80 @@
                 Background="#101720"
                 BorderBrush="#202B38"
                 BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,0,10,0">
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Classes="IconButton" Content="&#xE710;" Click="OnImportPdfClicked"/>
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="8,0,10,0">
+                <Button Grid.Column="0"
+                        Classes="IconButton"
+                        Content="&#xE710;"
+                        Command="{Binding Sidebar.ImportPdfFilesCommand}"
+                        VerticalAlignment="Center"/>
 
-                    <Border Background="#F7F9FC"
-                            BorderBrush="#CAD3DF"
-                            BorderThickness="1"
-                            CornerRadius="7,7,0,0"
-                            MinWidth="210"
-                            Height="34"
-                            Padding="10,0">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Border Width="16" Height="18" CornerRadius="3" Background="#EF4444" VerticalAlignment="Center">
-                                <TextBlock Text="PDF"
-                                           Foreground="White"
-                                           FontSize="7"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"/>
-                            </Border>
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding Workspace.ActiveDocument.Title, FallbackValue=No document open}"
-                                       Foreground="#172033"
-                                       FontSize="12"
-                                       FontWeight="SemiBold"
-                                       Margin="8,0"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"/>
-                            <Button Grid.Column="2"
-                                    Content="&#xE711;"
-                                    FontFamily="Segoe MDL2 Assets"
-                                    Foreground="#667386"
-                                    Width="24"
-                                    Height="24"
-                                    Padding="0"
-                                    HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center"/>
-                        </Grid>
-                    </Border>
-                </StackPanel>
+                    <ScrollViewer x:Name="TabStripScrollViewer"
+                                  Grid.Column="1"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  PointerWheelChanged="OnTabStripPointerWheelChanged"
+                                  Height="46"
+                                  VerticalAlignment="Bottom">
+                        <ItemsControl ItemsSource="{Binding Workspace.OpenTabs}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DocumentTabViewModel">
+                                    <Border Background="#F7F9FC"
+                                            BorderBrush="#CAD3DF"
+                                            BorderThickness="1"
+                                            CornerRadius="7,7,0,0"
+                                            MinWidth="210"
+                                            Height="34"
+                                            Margin="0,0,2,0">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <Button Grid.ColumnSpan="2"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Padding="10,0,0,0"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Command="{Binding #Root.DataContext.Workspace.SetActiveTabCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Grid ColumnDefinitions="Auto,*">
+                                                    <Border Width="16" Height="18" CornerRadius="3" Background="#EF4444" VerticalAlignment="Center">
+                                                        <TextBlock Text="PDF"
+                                                                   Foreground="White"
+                                                                   FontSize="7"
+                                                                   FontWeight="Bold"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding Title}"
+                                                               Foreground="#172033"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"
+                                                               Margin="8,0"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                </Grid>
+                                            </Button>
+                                            <Button Grid.Column="2"
+                                                    Content="&#xE711;"
+                                                    FontFamily="Segoe MDL2 Assets"
+                                                    Foreground="#667386"
+                                                    Width="28"
+                                                    Height="34"
+                                                    Padding="0"
+                                                    HorizontalContentAlignment="Center"
+                                                    VerticalContentAlignment="Center"
+                                                    Command="{Binding #Root.DataContext.Workspace.CloseDocumentTabCommand}"
+                                                    CommandParameter="{Binding}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Border Background="#172230" CornerRadius="7" Height="30" Width="48">
@@ -140,9 +175,12 @@
                         </Grid>
                     </Border>
 
-                    <Button Classes="IconButton" Content="&#xE72D;"/>
-                    <Button Classes="IconButton" Content="&#xE712;"/>
-                    <Button Classes="IconButton" Content="&#xE713;"/>
+                    <Button Classes="IconButton" Content="&#xE72D;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
+                    <Button Classes="IconButton" Content="&#xE712;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
+                    <Button Classes="IconButton"
+                            Content="&#xE713;"
+                            Command="{Binding OpenSettingsCommand}"
+                            ToolTip.Tip="Settings"/>
                 </StackPanel>
             </Grid>
         </Border>
