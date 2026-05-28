@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using MiniZotero.Models;
 using MiniZotero.Services;
 
@@ -10,16 +9,20 @@ namespace MiniZotero.Repositories
 {
     public sealed class HighlightRepository
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            WriteIndented = true
-        };
-
         private readonly AppStorageService _storageService;
+        private readonly JsonFileStore _jsonFileStore;
 
         public HighlightRepository(AppStorageService storageService)
+            : this(storageService, new JsonFileStore())
+        {
+        }
+
+        public HighlightRepository(
+            AppStorageService storageService,
+            JsonFileStore jsonFileStore)
         {
             _storageService = storageService;
+            _jsonFileStore = jsonFileStore;
         }
 
         public IReadOnlyList<HighlightItem> LoadHighlights(string documentId)
@@ -29,30 +32,7 @@ namespace MiniZotero.Repositories
                 return [];
             }
 
-            var path = GetHighlightFilePath(documentId);
-
-            if (!File.Exists(path))
-            {
-                return [];
-            }
-
-            try
-            {
-                var json = File.ReadAllText(path);
-                return JsonSerializer.Deserialize<List<HighlightItem>>(json, JsonOptions) ?? [];
-            }
-            catch (IOException)
-            {
-                return [];
-            }
-            catch (JsonException)
-            {
-                return [];
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return [];
-            }
+            return _jsonFileStore.Load(GetHighlightFilePath(documentId), new List<HighlightItem>());
         }
 
         public HighlightItem AddHighlight(HighlightItem highlight)
@@ -102,9 +82,7 @@ namespace MiniZotero.Repositories
             }
 
             var path = GetHighlightFilePath(documentId);
-            var json = JsonSerializer.Serialize(highlights, JsonOptions);
-
-            File.WriteAllText(path, json);
+            _jsonFileStore.Save(path, highlights);
         }
 
         private string GetHighlightFilePath(string documentId)

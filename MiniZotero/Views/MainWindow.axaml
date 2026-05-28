@@ -36,6 +36,8 @@
             <Setter Property="Padding" Value="0"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Foreground" Value="#AAB6C6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="TextBlock.Muted">
             <Setter Property="Foreground" Value="#8D9AAB"/>
@@ -72,16 +74,16 @@
                 Background="#101720"
                 BorderBrush="#202B38"
                 BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="10,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,0,10,0">
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Button Classes="IconButton" Content="&#xE710;" Click="OnImportPdfClicked"/>
 
                     <Border Background="#F7F9FC"
                             BorderBrush="#CAD3DF"
                             BorderThickness="1"
-                            CornerRadius="8,8,0,0"
+                            CornerRadius="7,7,0,0"
                             MinWidth="210"
-                            Height="35"
+                            Height="34"
                             Padding="10,0">
                         <Grid ColumnDefinitions="Auto,*,Auto">
                             <Border Width="16" Height="18" CornerRadius="3" Background="#EF4444" VerticalAlignment="Center">
@@ -106,7 +108,9 @@
                                     Foreground="#667386"
                                     Width="24"
                                     Height="24"
-                                    Padding="0"/>
+                                    Padding="0"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"/>
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -129,7 +133,7 @@
                                      BorderThickness="0"
                                      Foreground="#D8E1EC"
                                      FontSize="12"
-                                     Margin="8,-3,0,0"
+                                     Margin="8,0,0,0"
                                      Padding="0"
                                      VerticalAlignment="Center"
                                      VerticalContentAlignment="Center"/>
@@ -227,17 +231,17 @@
                            FontSize="11"
                            VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1"
-                           Text="Documents open"
+                           Text="{Binding DocumentsOpenText}"
                            Classes="Muted"
                            FontSize="11"
                            VerticalAlignment="Center"
                            Margin="0,0,22,0"/>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,22,0">
-                    <TextBlock Text="Last sync:"
+                    <TextBlock Text="Library:"
                                Classes="Muted"
                                FontSize="11"
                                VerticalAlignment="Center"/>
-                    <TextBlock Text="Not configured"
+                    <TextBlock Text="{Binding LibraryStatusText}"
                                Foreground="#AAB6C6"
                                FontSize="11"
                                VerticalAlignment="Center"/>

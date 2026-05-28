@@ -21,6 +21,8 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Foreground" Value="#AAB6C6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.SidebarIconButton:pointerover">
             <Setter Property="Background" Value="#273242"/>
@@ -211,7 +213,7 @@
 
                     <Grid ColumnDefinitions="*,Auto" Margin="4,22,4,8">
                         <TextBlock Text="SMART COLLECTIONS" Classes="SectionTitle"/>
-                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="18" Margin="0,-6,0,0"/>
+                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="16" VerticalAlignment="Center"/>
                     </Grid>
 
                     <ListBox Classes="SmartCollectionList"
@@ -243,7 +245,7 @@
                     </ListBox>
 
                     <Grid Height="25" ColumnDefinitions="Auto,*" Margin="17,1,0,0">
-                        <TextBlock Text="+" Foreground="#C2CAD8" FontSize="18" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                        <TextBlock Text="+" Foreground="#C2CAD8" FontSize="16" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="New Collection" Foreground="#C2CAD8" FontSize="12" Margin="9,0,0,0" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -381,7 +383,7 @@
 
                     <Grid ColumnDefinitions="*,Auto" Margin="4,18,4,8">
                         <TextBlock Text="TAGS" Classes="SectionTitle"/>
-                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="18" Margin="0,-6,0,0"/>
+                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="16" VerticalAlignment="Center"/>
                     </Grid>
 
                     <ListBox Classes="TagList"
@@ -474,6 +476,8 @@
                         </StackPanel>
                         <Button Grid.Column="2"
                                 Classes="SidebarIconButton"
+                                Width="24"
+                                Height="24"
                                 Content="&#xE713;"
                                 Click="OnConfigureWatchFolderClicked"/>
                         <TextBlock Grid.Row="1"
@@ -490,7 +494,7 @@
                     <Border Background="#303B4A" CornerRadius="2" Height="4">
                         <Border Background="#8B5CF6" CornerRadius="2" HorizontalAlignment="Left" Width="65"/>
                     </Border>
-                    <TextBlock Grid.Row="1" Text="Storage  8.7 GB / 100 GB" Foreground="#8D9AAB" FontSize="10" Margin="0,8,0,0"/>
+                    <TextBlock Grid.Row="1" Text="{Binding StorageUsageText}" Foreground="#8D9AAB" FontSize="10" Margin="0,8,0,0"/>
                 </Grid>
             </StackPanel>
         </Grid>

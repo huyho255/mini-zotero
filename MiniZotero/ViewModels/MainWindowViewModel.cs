@@ -15,11 +15,13 @@ namespace MiniZotero.ViewModels
             var settingsRepository = new AppSettingsRepository(storageService);
             var watchFolderService = new WatchFolderService();
             var markdownExportService = new MarkdownExportService();
+            var storageUsageService = new StorageUsageService();
 
             Sidebar = new SidebarViewModel(
                 documentRepository,
                 settingsRepository,
-                watchFolderService);
+                watchFolderService,
+                storageUsageService);
             Notes = new NotePreviewPanelViewModel(
                 noteRepository,
                 highlightRepository,
@@ -42,6 +44,15 @@ namespace MiniZotero.ViewModels
                 Workspace.PdfViewer.NavigateToHighlight(highlight);
             };
 
+            Workspace.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(TabWorkspaceViewModel.ActiveDocument))
+                {
+                    OnPropertyChanged(nameof(OpenDocumentCount));
+                    OnPropertyChanged(nameof(DocumentsOpenText));
+                }
+            };
+
             Sidebar.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
@@ -59,5 +70,14 @@ namespace MiniZotero.ViewModels
         public TabWorkspaceViewModel Workspace { get; }
 
         public NotePreviewPanelViewModel Notes { get; }
+
+        public int OpenDocumentCount => Workspace.ActiveDocument is null ? 0 : 1;
+
+        public string DocumentsOpenText =>
+            OpenDocumentCount == 1
+                ? "1 document open"
+                : $"{OpenDocumentCount} documents open";
+
+        public string LibraryStatusText => "Local library";
     }
 }

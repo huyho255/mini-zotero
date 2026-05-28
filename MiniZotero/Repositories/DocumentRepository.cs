@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using MiniZotero.Models;
 using MiniZotero.Services;
 
@@ -10,13 +9,9 @@ namespace MiniZotero.Repositories
 {
     public sealed class DocumentRepository
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            WriteIndented = true
-        };
-
         private readonly AppStorageService _storageService;
         private readonly AutoTagService _autoTagService;
+        private readonly JsonFileStore _jsonFileStore;
 
         public DocumentRepository(AppStorageService storageService)
             : this(storageService, new AutoTagService())
@@ -26,42 +21,34 @@ namespace MiniZotero.Repositories
         public DocumentRepository(
             AppStorageService storageService,
             AutoTagService autoTagService)
+            : this(storageService, autoTagService, new JsonFileStore())
+        {
+        }
+
+        public DocumentRepository(
+            AppStorageService storageService,
+            AutoTagService autoTagService,
+            JsonFileStore jsonFileStore)
         {
             _storageService = storageService;
             _autoTagService = autoTagService;
+            _jsonFileStore = jsonFileStore;
         }
 
         public IReadOnlyList<DocumentItem> LoadDocuments()
         {
-            var libraryPath = _storageService.LibraryFilePath;
-            if (!File.Exists(libraryPath))
+            var documents = _jsonFileStore
+                .Load(_storageService.LibraryFilePath, new List<DocumentItem>());
+            var changed = NormalizeDocuments(documents);
+            changed |= MigrateDocumentsToStorage(documents);
+            changed |= ApplyMissingAutoTags(documents);
+
+            if (changed)
             {
-                return [];
+                SaveDocuments(documents);
             }
 
-            try
-            {
-                var json = File.ReadAllText(libraryPath);
-                var documents = JsonSerializer.Deserialize<List<DocumentItem>>(json, JsonOptions) ?? [];
-                var changed = NormalizeDocuments(documents);
-                changed |= MigrateDocumentsToStorage(documents);
-                changed |= ApplyMissingAutoTags(documents);
-
-                if (changed)
-                {
-                    SaveDocuments(documents);
-                }
-
-                return documents;
-            }
-            catch (IOException)
-            {
-                return [];
-            }
-            catch (JsonException)
-            {
-                return [];
-            }
+            return documents;
         }
 
         public DocumentItem ImportDocument(string sourceFilePath, IEnumerable<DocumentItem> existingDocuments)
@@ -117,8 +104,7 @@ namespace MiniZotero.Repositories
 
         public void SaveDocuments(IEnumerable<DocumentItem> documents)
         {
-            var json = JsonSerializer.Serialize(documents, JsonOptions);
-            File.WriteAllText(_storageService.LibraryFilePath, json);
+            _jsonFileStore.Save(_storageService.LibraryFilePath, documents);
         }
 
         public void DeleteStoredPdfFile(DocumentItem document)

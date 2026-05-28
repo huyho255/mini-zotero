@@ -13,10 +13,15 @@ namespace MiniZotero.Services
         private const string HighlightsFolderName = "highlights";
 
         public AppStorageService()
-        {
-            RootPath = Path.Combine(
+            : this(Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                AppFolderName);
+                AppFolderName))
+        {
+        }
+
+        public AppStorageService(string rootPath)
+        {
+            RootPath = rootPath;
 
             Directory.CreateDirectory(RootPath);
             Directory.CreateDirectory(PdfFolderPath);
