@@ -104,17 +104,17 @@
                         BorderThickness="0,1,0,1"
                         Padding="12,0">
                     <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                        <Button Classes="FormatButton" Content="H"/>
-                        <Button Classes="FormatButton" Content="B" FontWeight="Bold"/>
-                        <Button Classes="FormatButton" Content="I" FontStyle="Italic"/>
-                        <Button Classes="FormatButton" Content="&#xE943;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE9D5;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE7C3;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE8A5;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE80A;" FontFamily="Segoe MDL2 Assets"/>
+                        <Button Classes="FormatButton" Content="H" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="B" FontWeight="Bold" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="I" FontStyle="Italic" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE943;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE9D5;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE7C3;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE8A5;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE80A;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
                     </StackPanel>
                 </Border>
 

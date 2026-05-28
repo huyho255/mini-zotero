@@ -35,10 +35,9 @@ namespace MiniZotero.Views
                 ]
             });
 
-            foreach (var file in pdfFiles.Where(file => file.Path.IsFile))
-            {
-                viewModel.Sidebar.AddDocument(Uri.UnescapeDataString(file.Path.LocalPath));
-            }
+            viewModel.Sidebar.AddDocuments(pdfFiles
+                .Where(file => file.Path.IsFile)
+                .Select(file => Uri.UnescapeDataString(file.Path.LocalPath)));
         }
     }
 }

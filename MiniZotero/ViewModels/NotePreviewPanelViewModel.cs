@@ -1,30 +1,29 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MiniZotero.Models;
-using MiniZotero.Repositories;
 using MiniZotero.Services;
 
 namespace MiniZotero.ViewModels
 {
     public partial class NotePreviewPanelViewModel : ViewModelBase
     {
-        private readonly NoteRepository _noteRepository;
-        private readonly HighlightRepository _highlightRepository;
-        private readonly MarkdownExportService _markdownExportService;
+        private readonly NoteService _noteService;
+        private readonly HighlightService _highlightService;
+        private CancellationTokenSource? _saveNoteDebounce;
         private bool _isLoadingNote;
 
         public NotePreviewPanelViewModel(
-            NoteRepository noteRepository,
-            HighlightRepository highlightRepository,
-            MarkdownExportService markdownExportService)
+            NoteService noteService,
+            HighlightService highlightService)
         {
-            _noteRepository = noteRepository;
-            _highlightRepository = highlightRepository;
-            _markdownExportService = markdownExportService;
+            _noteService = noteService;
+            _highlightService = highlightService;
         }
 
         [ObservableProperty]
@@ -36,6 +35,9 @@ namespace MiniZotero.ViewModels
 
         [ObservableProperty]
         private string _noteText = string.Empty;
+
+        [ObservableProperty]
+        private string _statusMessage = "Ready";
 
         public ObservableCollection<HighlightItem> Highlights { get; } = [];
 
@@ -53,12 +55,14 @@ namespace MiniZotero.ViewModels
 
         public void OpenDocument(DocumentItem document)
         {
+            SaveActiveNoteImmediately();
+
             ActiveDocument = document;
             _isLoadingNote = true;
 
             try
             {
-                NoteText = _noteRepository.LoadNote(document.Id);
+                NoteText = _noteService.LoadNote(document.Id);
             }
             finally
             {
@@ -79,38 +83,42 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            var highlight = new HighlightItem
-            {
-                DocumentId = ActiveDocument.Id,
-                PageNumber = pageNumber < 1 ? 1 : pageNumber,
-                Text = text.Trim(),
-                Color = "yellow",
-                Rects = rects.ToList()
-            };
+            var result = _highlightService.AddHighlight(
+                ActiveDocument,
+                text,
+                pageNumber,
+                rects);
 
-            _highlightRepository.AddHighlight(highlight);
+            StatusMessage = result.Message;
             LoadHighlights(ActiveDocument.Id);
         }
 
-        public void ExportActiveDocumentToMarkdown(string outputPath)
+        public OperationResult ExportActiveDocumentToMarkdown(string outputPath)
         {
             if (ActiveDocument is null)
             {
-                return;
+                var failure = OperationResult.Failure("Select a document before exporting.");
+                StatusMessage = failure.Message;
+                return failure;
             }
 
-            _markdownExportService.ExportDocumentNotes(
+            SaveActiveNoteImmediately();
+
+            var result = _noteService.ExportDocumentNotes(
                 ActiveDocument,
                 NoteText,
                 Highlights,
                 outputPath);
+
+            StatusMessage = result.Message;
+            return result;
         }
 
         private void LoadHighlights(string documentId)
         {
             Highlights.Clear();
 
-            foreach (var highlight in _highlightRepository.LoadHighlights(documentId))
+            foreach (var highlight in _highlightService.LoadHighlights(documentId))
             {
                 Highlights.Add(highlight);
             }
@@ -139,7 +147,8 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            _highlightRepository.DeleteHighlight(ActiveDocument.Id, highlight.Id);
+            var result = _highlightService.DeleteHighlight(ActiveDocument.Id, highlight.Id);
+            StatusMessage = result.Message;
             LoadHighlights(ActiveDocument.Id);
         }
 
@@ -150,7 +159,48 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            _noteRepository.SaveNote(document.Id, value);
+            ScheduleNoteSave(document.Id, value);
+        }
+
+        private void ScheduleNoteSave(string documentId, string value)
+        {
+            _saveNoteDebounce?.Cancel();
+            _saveNoteDebounce = new CancellationTokenSource();
+
+            var token = _saveNoteDebounce.Token;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(500, token);
+
+                    if (!token.IsCancellationRequested)
+                    {
+                        var result = _noteService.SaveNote(documentId, value);
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            StatusMessage = result.Message;
+                        });
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                }
+            }, token);
+        }
+
+        private void SaveActiveNoteImmediately()
+        {
+            _saveNoteDebounce?.Cancel();
+
+            if (ActiveDocument is null)
+            {
+                return;
+            }
+
+            var result = _noteService.SaveNote(ActiveDocument.Id, NoteText);
+            StatusMessage = result.Message;
         }
     }
 }

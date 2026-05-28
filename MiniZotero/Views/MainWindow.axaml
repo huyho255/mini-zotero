@@ -226,7 +226,7 @@
                 BorderBrush="#202B38"
                 BorderThickness="0,1,0,0">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="16,0">
-                <TextBlock Text="Ready"
+                <TextBlock Text="{Binding StatusMessage}"
                            Classes="Muted"
                            FontSize="11"
                            VerticalAlignment="Center"/>
