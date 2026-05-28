@@ -7,14 +7,17 @@ using System.Threading.Tasks;
 
 namespace MiniZotero.Services
 {
-    public sealed class PdfJsServerService
+    public sealed class PdfJsServerService : IDisposable
     {
-        private readonly HttpListener _listener = new();
+        private const int DefaultPort = 51234;
+        private const int LastFallbackPort = 51244;
+
         private readonly ConcurrentDictionary<string, string> _pdfFiles = new();
 
+        private HttpListener? _listener;
         private bool _isStarted;
 
-        public int Port { get; } = 51234;
+        public int Port { get; private set; } = DefaultPort;
 
         public string BaseUrl => $"http://127.0.0.1:{Port}";
 
@@ -25,12 +28,35 @@ namespace MiniZotero.Services
                 return;
             }
 
-            _listener.Prefixes.Add($"{BaseUrl}/");
-            _listener.Start();
+            _listener = StartListener();
 
             _isStarted = true;
 
             Task.Run(ListenLoop);
+        }
+
+        public void Stop()
+        {
+            if (!_isStarted)
+            {
+                return;
+            }
+
+            _isStarted = false;
+
+            try
+            {
+                _listener?.Stop();
+                _listener?.Close();
+            }
+            catch
+            {
+                // Ignore shutdown errors.
+            }
+            finally
+            {
+                _listener = null;
+            }
         }
 
         public string RegisterPdf(
@@ -63,12 +89,23 @@ namespace MiniZotero.Services
 
         private async Task ListenLoop()
         {
-            while (_listener.IsListening)
+            while (_listener?.IsListening == true)
             {
                 try
                 {
                     HttpListenerContext context = await _listener.GetContextAsync();
                     _ = Task.Run(() => HandleRequest(context));
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (HttpListenerException)
+                {
+                    if (_listener?.IsListening != true)
+                    {
+                        break;
+                    }
                 }
                 catch
                 {
@@ -218,6 +255,34 @@ namespace MiniZotero.Services
             context.Response.ContentType = "text/plain; charset=utf-8";
             context.Response.ContentLength64 = data.Length;
             context.Response.OutputStream.Write(data, 0, data.Length);
+        }
+
+        private HttpListener StartListener()
+        {
+            for (var port = DefaultPort; port <= LastFallbackPort; port++)
+            {
+                var listener = new HttpListener();
+                var prefix = $"http://127.0.0.1:{port}/";
+                listener.Prefixes.Add(prefix);
+
+                try
+                {
+                    listener.Start();
+                    Port = port;
+                    return listener;
+                }
+                catch (HttpListenerException)
+                {
+                    listener.Close();
+                }
+            }
+
+            throw new InvalidOperationException("Unable to start the local PDF server.");
+        }
+
+        public void Dispose()
+        {
+            Stop();
         }
     }
 }

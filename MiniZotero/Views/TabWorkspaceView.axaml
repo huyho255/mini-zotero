@@ -15,9 +15,20 @@
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.ToolButton:pointerover">
             <Setter Property="Background" Value="#EEF2F7"/>
+        </Style>
+        <Style Selector="Border.ZoomChip">
+            <Setter Property="Background" Value="#F2F5F9"/>
+            <Setter Property="BorderBrush" Value="#D5DDE7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="MinWidth" Value="68"/>
+            <Setter Property="Padding" Value="9,0"/>
         </Style>
         <Style Selector="Button.RailButton">
             <Setter Property="Width" Value="34"/>
@@ -73,8 +84,8 @@
                 Background="#FAFBFD"
                 BorderBrush="#D5DDE7"
                 BorderThickness="0,0,1,1">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,0">
-                <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="7,0,10,0">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Button Classes="ToolButton" Content="&#xE72B;"/>
                     <TextBlock Text="{Binding PdfViewer.CurrentPage}"
                                Foreground="#172033"
@@ -97,16 +108,13 @@
 
                     <Button Classes="ToolButton" Content="&#xE710;"/>
                     <Button Classes="ToolButton" Content="&#xE738;"/>
-                    <Border Background="#F2F5F9"
-                            BorderBrush="#D5DDE7"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Height="30"
-                            Padding="10,0">
+                    <Border Classes="ZoomChip">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <TextBlock Text="{Binding PdfViewer.ZoomPercent, StringFormat='{}{0}%'}"
                                        Foreground="#334155"
                                        FontSize="12"
+                                       MinWidth="35"
+                                       TextAlignment="Center"
                                        VerticalAlignment="Center"/>
                             <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#94A3B8" FontSize="9" VerticalAlignment="Center"/>
                         </StackPanel>

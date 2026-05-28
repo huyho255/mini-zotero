@@ -139,6 +139,7 @@ namespace MiniZotero.ViewModels
         private readonly DocumentRepository _documentRepository;
         private readonly AppSettingsRepository _settingsRepository;
         private readonly WatchFolderService _watchFolderService;
+        private readonly StorageUsageService _storageUsageService;
         private readonly SidebarNavigationItem _libraryNavigationItem;
         private readonly SidebarNavigationItem _recentNavigationItem;
         private readonly SidebarNavigationItem _starredNavigationItem;
@@ -150,18 +151,21 @@ namespace MiniZotero.ViewModels
             : this(
                 new DocumentRepository(new AppStorageService(), new AutoTagService()),
                 new AppSettingsRepository(new AppStorageService()),
-                new WatchFolderService())
+                new WatchFolderService(),
+                new StorageUsageService())
         {
         }
 
         public SidebarViewModel(
             DocumentRepository documentRepository,
             AppSettingsRepository settingsRepository,
-            WatchFolderService watchFolderService)
+            WatchFolderService watchFolderService,
+            StorageUsageService storageUsageService)
         {
             _documentRepository = documentRepository;
             _settingsRepository = settingsRepository;
             _watchFolderService = watchFolderService;
+            _storageUsageService = storageUsageService;
             _watchFolderService.PdfDetected += OnWatchFolderPdfDetected;
 
             _libraryNavigationItem = new SidebarNavigationItem("Library", "\uE8B7", "0");
@@ -291,6 +295,15 @@ namespace MiniZotero.ViewModels
                 ? $"Đang theo dõi: {Path.GetFileName(WatchFolderPath)}"
                 : "Not configured";
 
+        public string StorageUsageText
+        {
+            get
+            {
+                var bytes = _storageUsageService.GetLibraryUsageBytes(Documents);
+                return $"Storage  {_storageUsageService.FormatByteCount(bytes)} used";
+            }
+        }
+
         public void AddDocument(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath))
@@ -309,10 +322,7 @@ namespace MiniZotero.ViewModels
                 document.DeletedAt = null;
             }
 
-            _documentRepository.SaveDocuments(Documents);
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
 
             SelectedDocument = document;
         }
@@ -391,7 +401,16 @@ namespace MiniZotero.ViewModels
 
                 value.LastOpenedAt = DateTimeOffset.Now;
                 _documentRepository.SaveDocuments(Documents);
-                ApplyDocumentFilter();
+
+                if (ShouldRefreshDocumentListAfterOpen())
+                {
+                    ApplyDocumentFilter();
+                    ApplySearchFilter();
+                }
+                else
+                {
+                    NotifyDocumentStateChanged();
+                }
             });
         }
 
@@ -440,9 +459,7 @@ namespace MiniZotero.ViewModels
 
             document.IsStarred = !document.IsStarred;
 
-            _documentRepository.SaveDocuments(Documents);
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh(rebuildTags: false);
         }
 
         [RelayCommand]
@@ -479,14 +496,11 @@ namespace MiniZotero.ViewModels
             if (!exists)
             {
                 SelectedDocument.Tags.Add(tag);
-                _documentRepository.SaveDocuments(Documents);
             }
 
             NewTagText = string.Empty;
 
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
         }
 
         [RelayCommand]
@@ -500,11 +514,7 @@ namespace MiniZotero.ViewModels
             SelectedDocument.Tags.RemoveAll(existingTag =>
                 string.Equals(existingTag, tag, StringComparison.OrdinalIgnoreCase));
 
-            _documentRepository.SaveDocuments(Documents);
-
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
         }
 
         private void OnWatchFolderPdfDetected(string filePath)
@@ -526,12 +536,8 @@ namespace MiniZotero.ViewModels
             SelectedDocument.IsDeleted = true;
             SelectedDocument.DeletedAt = DateTimeOffset.Now;
 
-            _documentRepository.SaveDocuments(Documents);
-
             SelectedDocument = null;
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
         }
 
         [RelayCommand]
@@ -545,12 +551,8 @@ namespace MiniZotero.ViewModels
             SelectedDocument.IsDeleted = false;
             SelectedDocument.DeletedAt = null;
 
-            _documentRepository.SaveDocuments(Documents);
-
             SelectedDocument = null;
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
         }
 
         [RelayCommand]
@@ -566,11 +568,27 @@ namespace MiniZotero.ViewModels
 
             _documentRepository.DeleteStoredPdfFile(document);
             Documents.Remove(document);
+
+            PersistDocumentsAndRefresh();
+        }
+
+        private void PersistDocumentsAndRefresh(bool rebuildTags = true)
+        {
             _documentRepository.SaveDocuments(Documents);
 
-            RebuildTags();
+            if (rebuildTags)
+            {
+                RebuildTags();
+            }
+
             ApplyDocumentFilter();
             ApplySearchFilter();
+        }
+
+        private bool ShouldRefreshDocumentListAfterOpen()
+        {
+            return SelectedNavigationItem?.Name == "Recent" ||
+                   SelectedSmartCollection?.Kind is "recent" or "unread";
         }
 
         private void ApplyDocumentFilter()
@@ -795,6 +813,7 @@ namespace MiniZotero.ViewModels
             OnPropertyChanged(nameof(IsTrashDocumentActionsVisible));
             OnPropertyChanged(nameof(IsTagEditorVisible));
             OnPropertyChanged(nameof(CurrentDocumentSectionTitle));
+            OnPropertyChanged(nameof(StorageUsageText));
         }
 
         private void RefreshSmartCollectionCounts()
@@ -821,5 +840,6 @@ namespace MiniZotero.ViewModels
                 };
             }
         }
+
     }
 }

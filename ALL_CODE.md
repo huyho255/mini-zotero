@@ -10,8 +10,7 @@ Generated from the current workspace source files. Build output, IDE folders, no
 # Keep GitHub language stats focused on C#.
 * linguist-vendored
 *.cs linguist-vendored=false linguist-language=C#
-
-````
+``
 
 ## .gitignore
 
@@ -36,8 +35,7 @@ obj/
 
 # Node packages used only to vendor PDF.js assets.
 node_modules/
-
-````
+``
 
 ## AGENTS.md
 
@@ -46,7 +44,335 @@ node_modules/
 
 - After every code change, update `ALL_CODE.md` so it reflects the current project code.
 
-````
+## Project Coding Style
+
+This project must be written in a clean, simple, and maintainable C# desktop application style.
+
+Use the following style as the main reference:
+
+**Microsoft official .NET coding conventions + Avalonia MVVM sample style + simple service layer.**
+
+The goal is to produce code that is easy to understand, easy to explain in an OOP course/project, and easy to extend later. Do not write overly abstract enterprise-style code unless it is truly necessary.
+
+---
+
+## Technology Stack
+
+* Language: C#
+* Framework: .NET 8 or newer
+* UI Framework: Avalonia UI
+* Architecture Pattern: MVVM
+* Application Type: Desktop application
+
+---
+
+## General Rules
+
+1. Follow official Microsoft C# naming conventions.
+2. Keep the code readable and beginner-to-intermediate friendly.
+3. Prefer simple OOP design over complex enterprise architecture.
+4. Do not put all logic into `MainWindow` or code-behind files.
+5. Do not write script-like code.
+6. Do not over-engineer the project with unnecessary abstractions.
+7. Every class should have one clear responsibility.
+8. Avoid large classes that handle too many things.
+9. Avoid hardcoded paths, magic numbers, and temporary demo logic.
+10. Use `async`/`await` for file I/O, database I/O, PDF processing, and other long-running tasks.
+
+---
+
+## Folder Structure
+
+Use a clear folder structure:
+
+```text
+Models/
+ViewModels/
+Views/
+Services/
+Repositories/
+Helpers/
+Assets/
+```
+
+### Models
+
+Models should only represent data.
+
+Rules:
+
+* Do not put UI logic in Models.
+* Do not put file system or database logic in Models.
+* Keep Models simple and clean.
+
+Example responsibility:
+
+```text
+Document
+Annotation
+Tag
+LibraryItem
+```
+
+---
+
+### Views
+
+Views are responsible only for UI layout.
+
+Rules:
+
+* Use `.axaml` files for Avalonia UI.
+* Avoid code-behind logic.
+* Use data binding to connect Views with ViewModels.
+* Do not access Services directly from Views.
+* Do not read or write files directly in Views.
+* Do not put business logic in button click handlers.
+
+---
+
+### ViewModels
+
+ViewModels manage UI state and user actions.
+
+Rules:
+
+* ViewModels expose properties for binding.
+* ViewModels expose commands for user actions.
+* ViewModels may call Services.
+* ViewModels should not directly access the file system, database, or PDF parser.
+* ViewModels should not know about concrete Views.
+* Use `ObservableCollection<T>` for lists displayed in the UI.
+* Use `INotifyPropertyChanged` or CommunityToolkit.Mvvm if available.
+
+Example responsibilities:
+
+```text
+MainWindowViewModel
+LibraryViewModel
+PdfWorkspaceViewModel
+NotePanelViewModel
+```
+
+---
+
+### Services
+
+Services contain business logic.
+
+Rules:
+
+* Put document import logic in Services.
+* Put PDF handling logic in Services.
+* Put file management logic in Services.
+* Put search, tagging, and library management logic in Services.
+* Services should be reusable and testable.
+* Services should not directly control UI elements.
+
+Example services:
+
+```text
+IDocumentImportService
+DocumentImportService
+
+ILibraryService
+LibraryService
+
+IPdfService
+PdfService
+
+INoteService
+NoteService
+```
+
+Use interfaces for important services, especially when they represent core project behavior.
+Do not create interfaces for every tiny class if there is only one simple implementation and no clear benefit.
+
+---
+
+### Repositories
+
+Repositories are responsible for data persistence.
+
+Rules:
+
+* Use Repositories for database access, JSON storage, or local file metadata storage.
+* ViewModels must not directly access Repositories unless the project is very small.
+* Prefer ViewModel → Service → Repository flow.
+
+Example:
+
+```text
+IDocumentRepository
+DocumentRepository
+```
+
+---
+
+## Recommended Flow
+
+Use this general dependency flow:
+
+```text
+View
+  ↓ binding
+ViewModel
+  ↓ calls
+Service
+  ↓ uses
+Repository / File System / Database / PDF Library
+```
+
+Do not reverse this dependency direction.
+
+Bad example:
+
+```text
+View directly reads PDF files.
+View directly writes to database.
+Model directly updates UI.
+Service directly modifies Avalonia controls.
+```
+
+Good example:
+
+```text
+View binds to ViewModel.
+ViewModel calls LibraryService.
+LibraryService calls DocumentRepository.
+Repository saves or loads data.
+```
+
+---
+
+## UI Rules for Avalonia
+
+1. Write UI layout in `.axaml`.
+2. Use binding instead of manually updating UI controls.
+3. Use commands instead of button click logic when possible.
+4. Keep code-behind minimal.
+5. Use clean and modern layout.
+6. Keep UI components separated when the screen becomes large.
+
+---
+
+## OOP Requirements
+
+The code should clearly demonstrate OOP principles:
+
+### Encapsulation
+
+Keep data and behavior organized inside meaningful classes.
+
+### Abstraction
+
+Use interfaces for core services when useful.
+
+### Inheritance
+
+Use inheritance only when it makes sense. Do not force inheritance just to look object-oriented.
+
+### Polymorphism
+
+Use polymorphism naturally through interfaces or base classes when there are multiple implementations.
+
+---
+
+## Error Handling
+
+Use simple and practical error handling.
+
+Rules:
+
+* Catch exceptions at the service level when appropriate.
+* Do not silently ignore errors.
+* Return meaningful error messages or results to the ViewModel.
+* Avoid showing raw exception details directly in the UI unless debugging.
+
+---
+
+## Comments
+
+Use comments only when they help explain important logic.
+
+Good comments:
+
+```text
+// Extracts basic metadata from the selected PDF before adding it to the library.
+```
+
+Bad comments:
+
+```text
+// Set name to name
+// Loop through list
+```
+
+Do not over-comment obvious code.
+
+---
+
+## What To Avoid
+
+Avoid the following styles:
+
+```text
+- Putting everything in MainWindow.axaml.cs
+- Mixing UI logic with file/database logic
+- Huge static helper classes
+- Unnecessary Clean Architecture layers
+- Too many DTOs, mappers, factories, and use cases for simple features
+- Hardcoded absolute paths
+- Random sample data inside production classes
+- Complex enterprise patterns that are hard to explain
+- Code that only works as a quick demo
+```
+
+---
+
+## Feature Implementation Rule
+
+When implementing a new feature, follow this structure:
+
+```text
+1. Add or update Model if new data is needed.
+2. Add or update Service if business logic is needed.
+3. Add or update Repository if data must be saved or loaded.
+4. Add or update ViewModel for UI state and commands.
+5. Add or update View for visual layout and binding.
+```
+
+Do not start by putting logic directly into the View.
+
+---
+
+## Explanation Requirement
+
+After writing or modifying code, always explain:
+
+```text
+1. Which files were created or changed.
+2. What each class does.
+3. How the View, ViewModel, Service, and Repository interact.
+4. Why the design follows OOP and MVVM.
+5. How to run or test the feature.
+```
+
+---
+
+## Preferred Style Summary
+
+Write code as if it were a clean official .NET sample:
+
+```text
+Simple.
+Readable.
+MVVM-based.
+OOP-friendly.
+Not over-engineered.
+Easy to explain in a student project.
+```
+``
 
 ## MiniZotero.sln
 
@@ -58,6 +384,8 @@ VisualStudioVersion = 17.14.36518.9 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniZotero", "MiniZotero\MiniZotero.csproj", "{8C38B81B-B5CC-48CB-A61B-590819D69E6F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniZotero.Tests", "MiniZotero.Tests\MiniZotero.Tests.csproj", "{0F25A389-C06E-45B7-9736-6F8E4B1B89E8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -68,6 +396,10 @@ Global
 		{8C38B81B-B5CC-48CB-A61B-590819D69E6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8C38B81B-B5CC-48CB-A61B-590819D69E6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8C38B81B-B5CC-48CB-A61B-590819D69E6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0F25A389-C06E-45B7-9736-6F8E4B1B89E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0F25A389-C06E-45B7-9736-6F8E4B1B89E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0F25A389-C06E-45B7-9736-6F8E4B1B89E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0F25A389-C06E-45B7-9736-6F8E4B1B89E8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -76,8 +408,257 @@ Global
 		SolutionGuid = {57A150A0-920C-443B-A780-8D6D4F0656F7}
 	EndGlobalSection
 EndGlobal
+``
 
-````
+## MiniZotero.Tests/JsonFileStoreTests.cs
+
+``csharp
+using System.IO;
+using MiniZotero.Services;
+using Xunit;
+
+namespace MiniZotero.Tests
+{
+    public sealed class JsonFileStoreTests
+    {
+        [Fact]
+        public void LoadReturnsFallbackWhenFileIsMissing()
+        {
+            using var directory = new TemporaryDirectory();
+            var store = new JsonFileStore();
+            var fallback = new SampleData { Name = "fallback" };
+
+            var result = store.Load(Path.Combine(directory.Path, "missing.json"), fallback);
+
+            Assert.Same(fallback, result);
+        }
+
+        [Fact]
+        public void LoadReturnsFallbackWhenJsonIsInvalid()
+        {
+            using var directory = new TemporaryDirectory();
+            var path = Path.Combine(directory.Path, "data.json");
+            File.WriteAllText(path, "{ invalid json");
+
+            var store = new JsonFileStore();
+            var fallback = new SampleData { Name = "fallback" };
+
+            var result = store.Load(path, fallback);
+
+            Assert.Same(fallback, result);
+        }
+
+        [Fact]
+        public void SaveCreatesParentDirectoryAndWritesJson()
+        {
+            using var directory = new TemporaryDirectory();
+            var path = Path.Combine(directory.Path, "nested", "data.json");
+            var store = new JsonFileStore();
+
+            store.Save(path, new SampleData { Name = "saved" });
+
+            var result = store.Load(path, new SampleData());
+
+            Assert.Equal("saved", result.Name);
+        }
+
+        private sealed class SampleData
+        {
+            public string Name { get; set; } = string.Empty;
+        }
+    }
+}
+``
+
+## MiniZotero.Tests/MiniZotero.Tests.csproj
+
+``xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MiniZotero\MiniZotero.csproj" />
+  </ItemGroup>
+</Project>
+``
+
+## MiniZotero.Tests/RepositoryAndServiceTests.cs
+
+``csharp
+using System;
+using System.IO;
+using System.Linq;
+using MiniZotero.Models;
+using MiniZotero.Repositories;
+using MiniZotero.Services;
+using Xunit;
+
+namespace MiniZotero.Tests
+{
+    public sealed class RepositoryAndServiceTests
+    {
+        [Fact]
+        public void ImportDocumentCopiesPdfAndDoesNotDuplicateExistingDocument()
+        {
+            using var directory = new TemporaryDirectory();
+            var storage = new AppStorageService(Path.Combine(directory.Path, "app"));
+            var repository = new DocumentRepository(storage, new AutoTagService());
+            var sourcePath = Path.Combine(directory.Path, "Class.pdf");
+            File.WriteAllBytes(sourcePath, [1, 2, 3]);
+
+            var firstDocument = repository.ImportDocument(sourcePath, []);
+            var secondDocument = repository.ImportDocument(sourcePath, [firstDocument]);
+
+            Assert.Equal(firstDocument.Id, secondDocument.Id);
+            Assert.True(File.Exists(firstDocument.FilePath));
+            Assert.StartsWith(storage.PdfFolderPath, firstDocument.FilePath, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void HighlightRepositoryAddsDeletesSavesAndLoadsByDocumentId()
+        {
+            using var directory = new TemporaryDirectory();
+            var storage = new AppStorageService(Path.Combine(directory.Path, "app"));
+            var repository = new HighlightRepository(storage);
+            var firstHighlight = new HighlightItem
+            {
+                DocumentId = "doc-1",
+                Text = "First"
+            };
+            var secondHighlight = new HighlightItem
+            {
+                DocumentId = "doc-2",
+                Text = "Second"
+            };
+
+            repository.AddHighlight(firstHighlight);
+            repository.AddHighlight(secondHighlight);
+            repository.DeleteHighlight("doc-1", firstHighlight.Id);
+
+            Assert.Empty(repository.LoadHighlights("doc-1"));
+            Assert.Single(repository.LoadHighlights("doc-2"));
+        }
+
+        [Fact]
+        public void NoteRepositorySanitizesDocumentIdAndReturnsEmptyTextForMissingNote()
+        {
+            using var directory = new TemporaryDirectory();
+            var storage = new AppStorageService(Path.Combine(directory.Path, "app"));
+            var repository = new NoteRepository(storage);
+
+            repository.SaveNote("bad:id", "hello");
+
+            Assert.Equal("hello", repository.LoadNote("bad:id"));
+            Assert.Equal(string.Empty, repository.LoadNote("missing"));
+            Assert.True(File.Exists(Path.Combine(storage.NotesFolderPath, "bad_id.md")));
+        }
+
+        [Fact]
+        public void MarkdownExportOrdersHighlightsByPage()
+        {
+            using var directory = new TemporaryDirectory();
+            var service = new MarkdownExportService();
+            var document = new DocumentItem(
+                "doc",
+                "Document",
+                "stored.pdf",
+                "source.pdf",
+                new DateTimeOffset(2026, 5, 28, 10, 0, 0, TimeSpan.Zero),
+                lastOpenedAt: null,
+                lastReadPage: 1);
+            var outputPath = Path.Combine(directory.Path, "notes.md");
+            var highlights = new[]
+            {
+                new HighlightItem { DocumentId = "doc", PageNumber = 3, Text = "Third" },
+                new HighlightItem { DocumentId = "doc", PageNumber = 1, Text = "First" }
+            };
+
+            service.ExportDocumentNotes(document, "note", highlights, outputPath);
+
+            var markdown = File.ReadAllText(outputPath);
+
+            Assert.True(markdown.IndexOf("### Page 1", StringComparison.Ordinal) <
+                        markdown.IndexOf("### Page 3", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public void StorageUsageServiceCountsActiveExistingDocumentsOnly()
+        {
+            using var directory = new TemporaryDirectory();
+            var activePath = Path.Combine(directory.Path, "active.pdf");
+            var deletedPath = Path.Combine(directory.Path, "deleted.pdf");
+            File.WriteAllBytes(activePath, [1, 2, 3, 4]);
+            File.WriteAllBytes(deletedPath, [1, 2, 3, 4, 5]);
+            var service = new StorageUsageService();
+            var documents = new[]
+            {
+                new DocumentItem { FilePath = activePath },
+                new DocumentItem { FilePath = deletedPath, IsDeleted = true },
+                new DocumentItem { FilePath = Path.Combine(directory.Path, "missing.pdf") }
+            };
+
+            var bytes = service.GetLibraryUsageBytes(documents);
+
+            Assert.Equal(4, bytes);
+            Assert.Equal("4 B", service.FormatByteCount(bytes));
+        }
+    }
+}
+``
+
+## MiniZotero.Tests/TemporaryDirectory.cs
+
+``csharp
+using System;
+using System.IO;
+
+namespace MiniZotero.Tests
+{
+    internal sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"MiniZotero.Tests.{Guid.NewGuid():N}");
+
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(Path))
+                {
+                    Directory.Delete(Path, recursive: true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+    }
+}
+``
 
 ## MiniZotero/App.axaml
 
@@ -97,7 +678,7 @@ EndGlobal
         <FluentTheme />
     </Application.Styles>
 </Application>
-````
+``
 
 ## MiniZotero/App.axaml.cs
 
@@ -131,8 +712,7 @@ namespace MiniZotero
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/app.manifest
 
@@ -155,8 +735,7 @@ namespace MiniZotero
     </application>
   </compatibility>
 </assembly>
-
-````
+``
 
 ## MiniZotero/Assets/avalonia-logo.ico
 
@@ -388,7 +967,7 @@ _Skipped binary or large file. Size: 504 bytes._
 �RCopyright 1990-2009 Adobe Systems Incorporated.
 All rights reserved.
 See ./LICENSE�CNS2-H
-````
+``
 
 ## MiniZotero/Assets/PdfJs/cmaps/CNS-EUC-H.bcmap
 
@@ -412,7 +991,7 @@ _Skipped binary or large file. Size: 158 bytes._
 �RCopyright 1990-2009 Adobe Systems Incorporated.
 All rights reserved.
 See ./LICENSE�	ETen-B5-H` ^
-````
+``
 
 ## MiniZotero/Assets/PdfJs/cmaps/ETenms-B5-V.bcmap
 
@@ -465,7 +1044,7 @@ _Skipped binary or large file. Size: 179 bytes._
 All rights reserved.
 See ./LICENSE!!��]aX!!]`�21�>	�p�z�$]��"R�d�-U�7�*�4�%�+ �Z �{�/�%�<�9K�b�1]�.�"��`]�,�"]�
 �"]�h�"]�F�"]�$�"]��"]�`�"]�>�"]��"]�z�"]�X�"]�6�"]��"]�r�"]�P�"]�.�"]��"]�j�"]�H�"]�&�"]��"]�b�"]�@�"]��"]�|�"]�Z�"]�8�"]��"]�t�"]�R�"]�0�"]��"]�l�"]�J�"]�(�"]��"]�d�"]�B�"]� �"X�~�']�W�"]�5�"]��"]�q�"]�O�"]�-�"]��"]�i�"]�G�"]�%�"]��"]�a�"]�?�"]��"]�{�"]�Y�"]�7�"]��"]�s�"]�Q�"]�/�"]��"]�k�"]�I�"]�'�"]��"]�c�"]�A�"]��"]�}�"]�[�"]�9
-````
+``
 
 ## MiniZotero/Assets/PdfJs/cmaps/GBK2K-H.bcmap
 
@@ -678,8 +1257,7 @@ _Skipped binary or large file. Size: 160 bytes._
 %%Copyright: OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 %%Copyright: SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 %%Copyright: -----------------------------------------------------------
-
-````
+``
 
 ## MiniZotero/Assets/PdfJs/cmaps/NWP-H.bcmap
 
@@ -983,8 +1561,7 @@ _Skipped binary or large file. Size: 139512 bytes._
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-````
+``
 
 ## MiniZotero/Assets/PdfJs/standard_fonts/LICENSE_LIBERATION
 
@@ -1090,9 +1667,7 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER
 DEALINGS IN THE FONT SOFTWARE.
-
-
-````
+``
 
 ## MiniZotero/Assets/PdfViewer/index.html
 
@@ -1113,8 +1688,7 @@ DEALINGS IN THE FONT SOFTWARE.
     <script type="module" src="viewer.js"></script>
 </body>
 </html>
-
-````
+``
 
 ## MiniZotero/Assets/PdfViewer/style.css
 
@@ -1312,8 +1886,7 @@ body {
     padding: 16px;
     font-size: 13px;
 }
-
-````
+``
 
 ## MiniZotero/Assets/PdfViewer/viewer.js
 
@@ -3127,8 +3700,7 @@ document.addEventListener("keydown", event => {
 });
 
 boot();
-
-````
+``
 
 ## MiniZotero/Converters/StarredBrushConverter.cs
 
@@ -3156,8 +3728,7 @@ namespace MiniZotero.Converters
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/MiniZotero.csproj
 
@@ -3190,8 +3761,7 @@ namespace MiniZotero.Converters
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
   </ItemGroup>
 </Project>
-
-````
+``
 
 ## MiniZotero/Models/AppSettings.cs
 
@@ -3203,8 +3773,7 @@ namespace MiniZotero.Models
         public string? WatchFolderPath { get; set; }
     }
 }
-
-````
+``
 
 ## MiniZotero/Models/DocumentItem.cs
 
@@ -3267,8 +3836,7 @@ namespace MiniZotero.Models
         public List<string> Tags { get; set; } = [];
     }
 }
-
-````
+``
 
 ## MiniZotero/Models/HighlightItem.cs
 
@@ -3295,8 +3863,7 @@ namespace MiniZotero.Models
         public List<HighlightRect> Rects { get; set; } = [];
     }
 }
-
-````
+``
 
 ## MiniZotero/Models/HighlightRect.cs
 
@@ -3316,8 +3883,7 @@ namespace MiniZotero.Models
         public double Height { get; set; }
     }
 }
-
-````
+``
 
 ## MiniZotero/Program.cs
 
@@ -3344,14 +3910,11 @@ namespace MiniZotero
                 .LogToTrace();
     }
 }
-
-````
+``
 
 ## MiniZotero/Repositories/AppSettingsRepository.cs
 
 ``csharp
-using System.IO;
-using System.Text.Json;
 using MiniZotero.Models;
 using MiniZotero.Services;
 
@@ -3359,45 +3922,34 @@ namespace MiniZotero.Repositories
 {
     public sealed class AppSettingsRepository
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            WriteIndented = true
-        };
-
         private readonly AppStorageService _storageService;
+        private readonly JsonFileStore _jsonFileStore;
 
         public AppSettingsRepository(AppStorageService storageService)
+            : this(storageService, new JsonFileStore())
+        {
+        }
+
+        public AppSettingsRepository(
+            AppStorageService storageService,
+            JsonFileStore jsonFileStore)
         {
             _storageService = storageService;
+            _jsonFileStore = jsonFileStore;
         }
 
         public AppSettings LoadSettings()
         {
-            if (!File.Exists(_storageService.SettingsFilePath))
-            {
-                return new AppSettings();
-            }
-
-            try
-            {
-                var json = File.ReadAllText(_storageService.SettingsFilePath);
-                return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
-            }
-            catch
-            {
-                return new AppSettings();
-            }
+            return _jsonFileStore.Load(_storageService.SettingsFilePath, new AppSettings());
         }
 
         public void SaveSettings(AppSettings settings)
         {
-            var json = JsonSerializer.Serialize(settings, JsonOptions);
-            File.WriteAllText(_storageService.SettingsFilePath, json);
+            _jsonFileStore.Save(_storageService.SettingsFilePath, settings);
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/Repositories/DocumentRepository.cs
 
@@ -3406,7 +3958,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using MiniZotero.Models;
 using MiniZotero.Services;
 
@@ -3414,13 +3965,9 @@ namespace MiniZotero.Repositories
 {
     public sealed class DocumentRepository
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            WriteIndented = true
-        };
-
         private readonly AppStorageService _storageService;
         private readonly AutoTagService _autoTagService;
+        private readonly JsonFileStore _jsonFileStore;
 
         public DocumentRepository(AppStorageService storageService)
             : this(storageService, new AutoTagService())
@@ -3430,42 +3977,34 @@ namespace MiniZotero.Repositories
         public DocumentRepository(
             AppStorageService storageService,
             AutoTagService autoTagService)
+            : this(storageService, autoTagService, new JsonFileStore())
+        {
+        }
+
+        public DocumentRepository(
+            AppStorageService storageService,
+            AutoTagService autoTagService,
+            JsonFileStore jsonFileStore)
         {
             _storageService = storageService;
             _autoTagService = autoTagService;
+            _jsonFileStore = jsonFileStore;
         }
 
         public IReadOnlyList<DocumentItem> LoadDocuments()
         {
-            var libraryPath = _storageService.LibraryFilePath;
-            if (!File.Exists(libraryPath))
+            var documents = _jsonFileStore
+                .Load(_storageService.LibraryFilePath, new List<DocumentItem>());
+            var changed = NormalizeDocuments(documents);
+            changed |= MigrateDocumentsToStorage(documents);
+            changed |= ApplyMissingAutoTags(documents);
+
+            if (changed)
             {
-                return [];
+                SaveDocuments(documents);
             }
 
-            try
-            {
-                var json = File.ReadAllText(libraryPath);
-                var documents = JsonSerializer.Deserialize<List<DocumentItem>>(json, JsonOptions) ?? [];
-                var changed = NormalizeDocuments(documents);
-                changed |= MigrateDocumentsToStorage(documents);
-                changed |= ApplyMissingAutoTags(documents);
-
-                if (changed)
-                {
-                    SaveDocuments(documents);
-                }
-
-                return documents;
-            }
-            catch (IOException)
-            {
-                return [];
-            }
-            catch (JsonException)
-            {
-                return [];
-            }
+            return documents;
         }
 
         public DocumentItem ImportDocument(string sourceFilePath, IEnumerable<DocumentItem> existingDocuments)
@@ -3521,8 +4060,7 @@ namespace MiniZotero.Repositories
 
         public void SaveDocuments(IEnumerable<DocumentItem> documents)
         {
-            var json = JsonSerializer.Serialize(documents, JsonOptions);
-            File.WriteAllText(_storageService.LibraryFilePath, json);
+            _jsonFileStore.Save(_storageService.LibraryFilePath, documents);
         }
 
         public void DeleteStoredPdfFile(DocumentItem document)
@@ -3701,8 +4239,7 @@ namespace MiniZotero.Repositories
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/Repositories/HighlightRepository.cs
 
@@ -3711,7 +4248,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using MiniZotero.Models;
 using MiniZotero.Services;
 
@@ -3719,16 +4255,20 @@ namespace MiniZotero.Repositories
 {
     public sealed class HighlightRepository
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            WriteIndented = true
-        };
-
         private readonly AppStorageService _storageService;
+        private readonly JsonFileStore _jsonFileStore;
 
         public HighlightRepository(AppStorageService storageService)
+            : this(storageService, new JsonFileStore())
+        {
+        }
+
+        public HighlightRepository(
+            AppStorageService storageService,
+            JsonFileStore jsonFileStore)
         {
             _storageService = storageService;
+            _jsonFileStore = jsonFileStore;
         }
 
         public IReadOnlyList<HighlightItem> LoadHighlights(string documentId)
@@ -3738,30 +4278,7 @@ namespace MiniZotero.Repositories
                 return [];
             }
 
-            var path = GetHighlightFilePath(documentId);
-
-            if (!File.Exists(path))
-            {
-                return [];
-            }
-
-            try
-            {
-                var json = File.ReadAllText(path);
-                return JsonSerializer.Deserialize<List<HighlightItem>>(json, JsonOptions) ?? [];
-            }
-            catch (IOException)
-            {
-                return [];
-            }
-            catch (JsonException)
-            {
-                return [];
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return [];
-            }
+            return _jsonFileStore.Load(GetHighlightFilePath(documentId), new List<HighlightItem>());
         }
 
         public HighlightItem AddHighlight(HighlightItem highlight)
@@ -3811,9 +4328,7 @@ namespace MiniZotero.Repositories
             }
 
             var path = GetHighlightFilePath(documentId);
-            var json = JsonSerializer.Serialize(highlights, JsonOptions);
-
-            File.WriteAllText(path, json);
+            _jsonFileStore.Save(path, highlights);
         }
 
         private string GetHighlightFilePath(string documentId)
@@ -3822,8 +4337,7 @@ namespace MiniZotero.Repositories
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/Repositories/NoteRepository.cs
 
@@ -3873,8 +4387,7 @@ namespace MiniZotero.Repositories
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/Services/AppStorageService.cs
 
@@ -3894,10 +4407,15 @@ namespace MiniZotero.Services
         private const string HighlightsFolderName = "highlights";
 
         public AppStorageService()
-        {
-            RootPath = Path.Combine(
+            : this(Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                AppFolderName);
+                AppFolderName))
+        {
+        }
+
+        public AppStorageService(string rootPath)
+        {
+            RootPath = rootPath;
 
             Directory.CreateDirectory(RootPath);
             Directory.CreateDirectory(PdfFolderPath);
@@ -3920,8 +4438,7 @@ namespace MiniZotero.Services
         public string SettingsFilePath => Path.Combine(RootPath, SettingsFileName);
     }
 }
-
-````
+``
 
 ## MiniZotero/Services/AutoTagService.cs
 
@@ -3968,8 +4485,104 @@ namespace MiniZotero.Services
         }
     }
 }
+``
 
-````
+## MiniZotero/Services/JsonFileStore.cs
+
+``csharp
+using System;
+using System.IO;
+using System.Text.Json;
+
+namespace MiniZotero.Services
+{
+    public sealed class JsonFileStore
+    {
+        public static readonly JsonSerializerOptions DefaultJsonOptions = new()
+        {
+            WriteIndented = true
+        };
+
+        private readonly JsonSerializerOptions _jsonOptions;
+
+        public JsonFileStore()
+            : this(DefaultJsonOptions)
+        {
+        }
+
+        public JsonFileStore(JsonSerializerOptions jsonOptions)
+        {
+            _jsonOptions = jsonOptions;
+        }
+
+        public T Load<T>(string path, T fallback)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                return fallback;
+            }
+
+            try
+            {
+                var json = File.ReadAllText(path);
+                return JsonSerializer.Deserialize<T>(json, _jsonOptions) ?? fallback;
+            }
+            catch (IOException)
+            {
+                return fallback;
+            }
+            catch (JsonException)
+            {
+                return fallback;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return fallback;
+            }
+        }
+
+        public void Save<T>(string path, T value)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            var directoryPath = Path.GetDirectoryName(path);
+
+            if (!string.IsNullOrWhiteSpace(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
+            var json = JsonSerializer.Serialize(value, _jsonOptions);
+
+            try
+            {
+                File.WriteAllText(temporaryPath, json);
+                File.Move(temporaryPath, path, overwrite: true);
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(temporaryPath))
+                    {
+                        File.Delete(temporaryPath);
+                    }
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+            }
+        }
+    }
+}
+``
 
 ## MiniZotero/Services/MarkdownExportService.cs
 
@@ -4073,8 +4686,7 @@ namespace MiniZotero.Services
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/Services/PdfJsServerService.cs
 
@@ -4088,14 +4700,17 @@ using System.Threading.Tasks;
 
 namespace MiniZotero.Services
 {
-    public sealed class PdfJsServerService
+    public sealed class PdfJsServerService : IDisposable
     {
-        private readonly HttpListener _listener = new();
+        private const int DefaultPort = 51234;
+        private const int LastFallbackPort = 51244;
+
         private readonly ConcurrentDictionary<string, string> _pdfFiles = new();
 
+        private HttpListener? _listener;
         private bool _isStarted;
 
-        public int Port { get; } = 51234;
+        public int Port { get; private set; } = DefaultPort;
 
         public string BaseUrl => $"http://127.0.0.1:{Port}";
 
@@ -4106,12 +4721,35 @@ namespace MiniZotero.Services
                 return;
             }
 
-            _listener.Prefixes.Add($"{BaseUrl}/");
-            _listener.Start();
+            _listener = StartListener();
 
             _isStarted = true;
 
             Task.Run(ListenLoop);
+        }
+
+        public void Stop()
+        {
+            if (!_isStarted)
+            {
+                return;
+            }
+
+            _isStarted = false;
+
+            try
+            {
+                _listener?.Stop();
+                _listener?.Close();
+            }
+            catch
+            {
+                // Ignore shutdown errors.
+            }
+            finally
+            {
+                _listener = null;
+            }
         }
 
         public string RegisterPdf(
@@ -4144,12 +4782,23 @@ namespace MiniZotero.Services
 
         private async Task ListenLoop()
         {
-            while (_listener.IsListening)
+            while (_listener?.IsListening == true)
             {
                 try
                 {
                     HttpListenerContext context = await _listener.GetContextAsync();
                     _ = Task.Run(() => HandleRequest(context));
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (HttpListenerException)
+                {
+                    if (_listener?.IsListening != true)
+                    {
+                        break;
+                    }
                 }
                 catch
                 {
@@ -4300,10 +4949,95 @@ namespace MiniZotero.Services
             context.Response.ContentLength64 = data.Length;
             context.Response.OutputStream.Write(data, 0, data.Length);
         }
+
+        private HttpListener StartListener()
+        {
+            for (var port = DefaultPort; port <= LastFallbackPort; port++)
+            {
+                var listener = new HttpListener();
+                var prefix = $"http://127.0.0.1:{port}/";
+                listener.Prefixes.Add(prefix);
+
+                try
+                {
+                    listener.Start();
+                    Port = port;
+                    return listener;
+                }
+                catch (HttpListenerException)
+                {
+                    listener.Close();
+                }
+            }
+
+            throw new InvalidOperationException("Unable to start the local PDF server.");
+        }
+
+        public void Dispose()
+        {
+            Stop();
+        }
     }
 }
+``
 
-````
+## MiniZotero/Services/StorageUsageService.cs
+
+``csharp
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using MiniZotero.Models;
+
+namespace MiniZotero.Services
+{
+    public sealed class StorageUsageService
+    {
+        public long GetLibraryUsageBytes(IEnumerable<DocumentItem> documents)
+        {
+            return documents
+                .Where(document => !document.IsDeleted)
+                .Sum(GetDocumentFileSize);
+        }
+
+        public string FormatByteCount(long bytes)
+        {
+            string[] units = ["B", "KB", "MB", "GB", "TB"];
+            var size = (double)Math.Max(bytes, 0);
+            var unitIndex = 0;
+
+            while (size >= 1024 && unitIndex < units.Length - 1)
+            {
+                size /= 1024;
+                unitIndex++;
+            }
+
+            return unitIndex == 0
+                ? $"{size:0} {units[unitIndex]}"
+                : $"{size:0.#} {units[unitIndex]}";
+        }
+
+        private static long GetDocumentFileSize(DocumentItem document)
+        {
+            try
+            {
+                return !string.IsNullOrWhiteSpace(document.FilePath) && File.Exists(document.FilePath)
+                    ? new FileInfo(document.FilePath).Length
+                    : 0;
+            }
+            catch (IOException)
+            {
+                return 0;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return 0;
+            }
+        }
+    }
+}
+``
 
 ## MiniZotero/Services/WatchFolderService.cs
 
@@ -4429,8 +5163,7 @@ namespace MiniZotero.Services
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/ViewLocator.cs
 
@@ -4473,8 +5206,7 @@ namespace MiniZotero
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/ViewModels/MainWindowViewModel.cs
 
@@ -4496,11 +5228,13 @@ namespace MiniZotero.ViewModels
             var settingsRepository = new AppSettingsRepository(storageService);
             var watchFolderService = new WatchFolderService();
             var markdownExportService = new MarkdownExportService();
+            var storageUsageService = new StorageUsageService();
 
             Sidebar = new SidebarViewModel(
                 documentRepository,
                 settingsRepository,
-                watchFolderService);
+                watchFolderService,
+                storageUsageService);
             Notes = new NotePreviewPanelViewModel(
                 noteRepository,
                 highlightRepository,
@@ -4523,6 +5257,15 @@ namespace MiniZotero.ViewModels
                 Workspace.PdfViewer.NavigateToHighlight(highlight);
             };
 
+            Workspace.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(TabWorkspaceViewModel.ActiveDocument))
+                {
+                    OnPropertyChanged(nameof(OpenDocumentCount));
+                    OnPropertyChanged(nameof(DocumentsOpenText));
+                }
+            };
+
             Sidebar.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
@@ -4540,10 +5283,18 @@ namespace MiniZotero.ViewModels
         public TabWorkspaceViewModel Workspace { get; }
 
         public NotePreviewPanelViewModel Notes { get; }
+
+        public int OpenDocumentCount => Workspace.ActiveDocument is null ? 0 : 1;
+
+        public string DocumentsOpenText =>
+            OpenDocumentCount == 1
+                ? "1 document open"
+                : $"{OpenDocumentCount} documents open";
+
+        public string LibraryStatusText => "Local library";
     }
 }
-
-````
+``
 
 ## MiniZotero/ViewModels/NotePreviewPanelViewModel.cs
 
@@ -4704,8 +5455,7 @@ namespace MiniZotero.ViewModels
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/ViewModels/PdfViewerViewModel.cs
 
@@ -4894,8 +5644,7 @@ namespace MiniZotero.ViewModels
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/ViewModels/SidebarViewModel.cs
 
@@ -5041,6 +5790,7 @@ namespace MiniZotero.ViewModels
         private readonly DocumentRepository _documentRepository;
         private readonly AppSettingsRepository _settingsRepository;
         private readonly WatchFolderService _watchFolderService;
+        private readonly StorageUsageService _storageUsageService;
         private readonly SidebarNavigationItem _libraryNavigationItem;
         private readonly SidebarNavigationItem _recentNavigationItem;
         private readonly SidebarNavigationItem _starredNavigationItem;
@@ -5052,18 +5802,21 @@ namespace MiniZotero.ViewModels
             : this(
                 new DocumentRepository(new AppStorageService(), new AutoTagService()),
                 new AppSettingsRepository(new AppStorageService()),
-                new WatchFolderService())
+                new WatchFolderService(),
+                new StorageUsageService())
         {
         }
 
         public SidebarViewModel(
             DocumentRepository documentRepository,
             AppSettingsRepository settingsRepository,
-            WatchFolderService watchFolderService)
+            WatchFolderService watchFolderService,
+            StorageUsageService storageUsageService)
         {
             _documentRepository = documentRepository;
             _settingsRepository = settingsRepository;
             _watchFolderService = watchFolderService;
+            _storageUsageService = storageUsageService;
             _watchFolderService.PdfDetected += OnWatchFolderPdfDetected;
 
             _libraryNavigationItem = new SidebarNavigationItem("Library", "\uE8B7", "0");
@@ -5193,6 +5946,15 @@ namespace MiniZotero.ViewModels
                 ? $"Đang theo dõi: {Path.GetFileName(WatchFolderPath)}"
                 : "Not configured";
 
+        public string StorageUsageText
+        {
+            get
+            {
+                var bytes = _storageUsageService.GetLibraryUsageBytes(Documents);
+                return $"Storage  {_storageUsageService.FormatByteCount(bytes)} used";
+            }
+        }
+
         public void AddDocument(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath))
@@ -5211,10 +5973,7 @@ namespace MiniZotero.ViewModels
                 document.DeletedAt = null;
             }
 
-            _documentRepository.SaveDocuments(Documents);
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
 
             SelectedDocument = document;
         }
@@ -5293,7 +6052,16 @@ namespace MiniZotero.ViewModels
 
                 value.LastOpenedAt = DateTimeOffset.Now;
                 _documentRepository.SaveDocuments(Documents);
-                ApplyDocumentFilter();
+
+                if (ShouldRefreshDocumentListAfterOpen())
+                {
+                    ApplyDocumentFilter();
+                    ApplySearchFilter();
+                }
+                else
+                {
+                    NotifyDocumentStateChanged();
+                }
             });
         }
 
@@ -5342,9 +6110,7 @@ namespace MiniZotero.ViewModels
 
             document.IsStarred = !document.IsStarred;
 
-            _documentRepository.SaveDocuments(Documents);
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh(rebuildTags: false);
         }
 
         [RelayCommand]
@@ -5381,14 +6147,11 @@ namespace MiniZotero.ViewModels
             if (!exists)
             {
                 SelectedDocument.Tags.Add(tag);
-                _documentRepository.SaveDocuments(Documents);
             }
 
             NewTagText = string.Empty;
 
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
         }
 
         [RelayCommand]
@@ -5402,11 +6165,7 @@ namespace MiniZotero.ViewModels
             SelectedDocument.Tags.RemoveAll(existingTag =>
                 string.Equals(existingTag, tag, StringComparison.OrdinalIgnoreCase));
 
-            _documentRepository.SaveDocuments(Documents);
-
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
         }
 
         private void OnWatchFolderPdfDetected(string filePath)
@@ -5428,12 +6187,8 @@ namespace MiniZotero.ViewModels
             SelectedDocument.IsDeleted = true;
             SelectedDocument.DeletedAt = DateTimeOffset.Now;
 
-            _documentRepository.SaveDocuments(Documents);
-
             SelectedDocument = null;
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
         }
 
         [RelayCommand]
@@ -5447,12 +6202,8 @@ namespace MiniZotero.ViewModels
             SelectedDocument.IsDeleted = false;
             SelectedDocument.DeletedAt = null;
 
-            _documentRepository.SaveDocuments(Documents);
-
             SelectedDocument = null;
-            RebuildTags();
-            ApplyDocumentFilter();
-            ApplySearchFilter();
+            PersistDocumentsAndRefresh();
         }
 
         [RelayCommand]
@@ -5468,11 +6219,27 @@ namespace MiniZotero.ViewModels
 
             _documentRepository.DeleteStoredPdfFile(document);
             Documents.Remove(document);
+
+            PersistDocumentsAndRefresh();
+        }
+
+        private void PersistDocumentsAndRefresh(bool rebuildTags = true)
+        {
             _documentRepository.SaveDocuments(Documents);
 
-            RebuildTags();
+            if (rebuildTags)
+            {
+                RebuildTags();
+            }
+
             ApplyDocumentFilter();
             ApplySearchFilter();
+        }
+
+        private bool ShouldRefreshDocumentListAfterOpen()
+        {
+            return SelectedNavigationItem?.Name == "Recent" ||
+                   SelectedSmartCollection?.Kind is "recent" or "unread";
         }
 
         private void ApplyDocumentFilter()
@@ -5697,6 +6464,7 @@ namespace MiniZotero.ViewModels
             OnPropertyChanged(nameof(IsTrashDocumentActionsVisible));
             OnPropertyChanged(nameof(IsTagEditorVisible));
             OnPropertyChanged(nameof(CurrentDocumentSectionTitle));
+            OnPropertyChanged(nameof(StorageUsageText));
         }
 
         private void RefreshSmartCollectionCounts()
@@ -5723,10 +6491,10 @@ namespace MiniZotero.ViewModels
                 };
             }
         }
+
     }
 }
-
-````
+``
 
 ## MiniZotero/ViewModels/TabWorkspaceViewModel.cs
 
@@ -5764,8 +6532,7 @@ namespace MiniZotero.ViewModels
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/ViewModels/ViewModelBase.cs
 
@@ -5778,8 +6545,7 @@ namespace MiniZotero.ViewModels
     {
     }
 }
-
-````
+``
 
 ## MiniZotero/Views/MainWindow.axaml
 
@@ -5822,6 +6588,8 @@ namespace MiniZotero.ViewModels
             <Setter Property="Padding" Value="0"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Foreground" Value="#AAB6C6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="TextBlock.Muted">
             <Setter Property="Foreground" Value="#8D9AAB"/>
@@ -5858,16 +6626,16 @@ namespace MiniZotero.ViewModels
                 Background="#101720"
                 BorderBrush="#202B38"
                 BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="10,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,0,10,0">
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Button Classes="IconButton" Content="&#xE710;" Click="OnImportPdfClicked"/>
 
                     <Border Background="#F7F9FC"
                             BorderBrush="#CAD3DF"
                             BorderThickness="1"
-                            CornerRadius="8,8,0,0"
+                            CornerRadius="7,7,0,0"
                             MinWidth="210"
-                            Height="35"
+                            Height="34"
                             Padding="10,0">
                         <Grid ColumnDefinitions="Auto,*,Auto">
                             <Border Width="16" Height="18" CornerRadius="3" Background="#EF4444" VerticalAlignment="Center">
@@ -5892,7 +6660,9 @@ namespace MiniZotero.ViewModels
                                     Foreground="#667386"
                                     Width="24"
                                     Height="24"
-                                    Padding="0"/>
+                                    Padding="0"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"/>
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -5915,7 +6685,7 @@ namespace MiniZotero.ViewModels
                                      BorderThickness="0"
                                      Foreground="#D8E1EC"
                                      FontSize="12"
-                                     Margin="8,-3,0,0"
+                                     Margin="8,0,0,0"
                                      Padding="0"
                                      VerticalAlignment="Center"
                                      VerticalContentAlignment="Center"/>
@@ -6013,17 +6783,17 @@ namespace MiniZotero.ViewModels
                            FontSize="11"
                            VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1"
-                           Text="Documents open"
+                           Text="{Binding DocumentsOpenText}"
                            Classes="Muted"
                            FontSize="11"
                            VerticalAlignment="Center"
                            Margin="0,0,22,0"/>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,22,0">
-                    <TextBlock Text="Last sync:"
+                    <TextBlock Text="Library:"
                                Classes="Muted"
                                FontSize="11"
                                VerticalAlignment="Center"/>
-                    <TextBlock Text="Not configured"
+                    <TextBlock Text="{Binding LibraryStatusText}"
                                Foreground="#AAB6C6"
                                FontSize="11"
                                VerticalAlignment="Center"/>
@@ -6038,8 +6808,7 @@ namespace MiniZotero.ViewModels
         </Border>
     </Grid>
 </Window>
-
-````
+``
 
 ## MiniZotero/Views/MainWindow.axaml.cs
 
@@ -6088,8 +6857,7 @@ namespace MiniZotero.Views
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/Views/NotePreviewPanelView.axaml
 
@@ -6118,9 +6886,20 @@ namespace MiniZotero.Views
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.PanelIconButton:pointerover">
             <Setter Property="Background" Value="#F1F5F9"/>
+        </Style>
+        <Style Selector="Border.PanelZoomChip">
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#D5DDE7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="50"/>
+            <Setter Property="Padding" Value="9,0"/>
         </Style>
         <Style Selector="Button.ExportButton">
             <Setter Property="Height" Value="28"/>
@@ -6131,6 +6910,8 @@ namespace MiniZotero.Views
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Foreground" Value="#334155"/>
             <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.ExportButton:pointerover">
             <Setter Property="Background" Value="#F1F5F9"/>
@@ -6144,6 +6925,8 @@ namespace MiniZotero.Views
             <Setter Property="CornerRadius" Value="5"/>
             <Setter Property="Foreground" Value="#64748B"/>
             <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.FormatButton:pointerover">
             <Setter Property="Background" Value="#F1F5F9"/>
@@ -6153,7 +6936,7 @@ namespace MiniZotero.Views
     <Grid Background="#E6EBF2" RowDefinitions="280,6,*">
         <Border Grid.Row="0" Classes="PanelCard" Margin="8,8,8,0">
             <Grid RowDefinitions="42,34,*">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="14,0">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,0,10,0">
                     <TextBlock Text="&#xE734;"
                                FontFamily="Segoe MDL2 Assets"
                                Foreground="#64748B"
@@ -6165,14 +6948,9 @@ namespace MiniZotero.Views
                                FontWeight="SemiBold"
                                Margin="9,0,0,0"
                                VerticalAlignment="Center"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                        <Border Background="#F8FAFC"
-                                BorderBrush="#D5DDE7"
-                                BorderThickness="1"
-                                CornerRadius="6"
-                                Height="28"
-                                Padding="9,0">
-                            <TextBlock Text="100%" Foreground="#334155" FontSize="12" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                        <Border Classes="PanelZoomChip">
+                            <TextBlock Text="100%" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <Button Classes="PanelIconButton" Content="&#xE738;"/>
                         <Button Classes="PanelIconButton" Content="&#xE710;"/>
@@ -6189,7 +6967,7 @@ namespace MiniZotero.Views
                         BorderBrush="#E5EAF0"
                         BorderThickness="0,1,0,1"
                         Padding="12,0">
-                    <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                         <Button Classes="FormatButton" Content="H"/>
                         <Button Classes="FormatButton" Content="B" FontWeight="Bold"/>
                         <Button Classes="FormatButton" Content="I" FontStyle="Italic"/>
@@ -6254,7 +7032,7 @@ namespace MiniZotero.Views
 
         <Border Grid.Row="2" Classes="PanelCard" Margin="8,0,8,8">
             <Grid RowDefinitions="42,*">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="14,0">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,0,10,0">
                     <TextBlock Text="&#xE8A5;"
                                FontFamily="Segoe MDL2 Assets"
                                Foreground="#64748B"
@@ -6267,14 +7045,9 @@ namespace MiniZotero.Views
                                FontSize="12"
                                Margin="9,0,0,0"
                                VerticalAlignment="Center"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                        <Border Background="#F8FAFC"
-                                BorderBrush="#D5DDE7"
-                                BorderThickness="1"
-                                CornerRadius="6"
-                                Height="28"
-                                Padding="9,0">
-                            <TextBlock Text="100%" Foreground="#334155" FontSize="12" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                        <Border Classes="PanelZoomChip">
+                            <TextBlock Text="100%" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <Button Classes="PanelIconButton" Content="&#xE738;"/>
                         <Button Classes="PanelIconButton" Content="&#xE710;"/>
@@ -6378,8 +7151,7 @@ namespace MiniZotero.Views
         </Border>
     </Grid>
 </UserControl>
-
-````
+``
 
 ## MiniZotero/Views/NotePreviewPanelView.axaml.cs
 
@@ -6456,8 +7228,7 @@ namespace MiniZotero.Views
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/Views/PdfViewerView.axaml
 
@@ -6527,8 +7298,7 @@ namespace MiniZotero.Views
         </Grid>
     </Grid>
 </UserControl>
-
-````
+``
 
 ## MiniZotero/Views/PdfViewerView.axaml.cs
 
@@ -6680,8 +7450,7 @@ namespace MiniZotero.Views
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/Views/SidebarView.axaml
 
@@ -6709,6 +7478,8 @@ namespace MiniZotero.Views
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Foreground" Value="#AAB6C6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.SidebarIconButton:pointerover">
             <Setter Property="Background" Value="#273242"/>
@@ -6899,7 +7670,7 @@ namespace MiniZotero.Views
 
                     <Grid ColumnDefinitions="*,Auto" Margin="4,22,4,8">
                         <TextBlock Text="SMART COLLECTIONS" Classes="SectionTitle"/>
-                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="18" Margin="0,-6,0,0"/>
+                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="16" VerticalAlignment="Center"/>
                     </Grid>
 
                     <ListBox Classes="SmartCollectionList"
@@ -6931,7 +7702,7 @@ namespace MiniZotero.Views
                     </ListBox>
 
                     <Grid Height="25" ColumnDefinitions="Auto,*" Margin="17,1,0,0">
-                        <TextBlock Text="+" Foreground="#C2CAD8" FontSize="18" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                        <TextBlock Text="+" Foreground="#C2CAD8" FontSize="16" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="New Collection" Foreground="#C2CAD8" FontSize="12" Margin="9,0,0,0" VerticalAlignment="Center"/>
                     </Grid>
 
@@ -7069,7 +7840,7 @@ namespace MiniZotero.Views
 
                     <Grid ColumnDefinitions="*,Auto" Margin="4,18,4,8">
                         <TextBlock Text="TAGS" Classes="SectionTitle"/>
-                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="18" Margin="0,-6,0,0"/>
+                        <TextBlock Grid.Column="1" Text="+" Foreground="#B9C4D3" FontSize="16" VerticalAlignment="Center"/>
                     </Grid>
 
                     <ListBox Classes="TagList"
@@ -7162,6 +7933,8 @@ namespace MiniZotero.Views
                         </StackPanel>
                         <Button Grid.Column="2"
                                 Classes="SidebarIconButton"
+                                Width="24"
+                                Height="24"
                                 Content="&#xE713;"
                                 Click="OnConfigureWatchFolderClicked"/>
                         <TextBlock Grid.Row="1"
@@ -7178,14 +7951,13 @@ namespace MiniZotero.Views
                     <Border Background="#303B4A" CornerRadius="2" Height="4">
                         <Border Background="#8B5CF6" CornerRadius="2" HorizontalAlignment="Left" Width="65"/>
                     </Border>
-                    <TextBlock Grid.Row="1" Text="Storage  8.7 GB / 100 GB" Foreground="#8D9AAB" FontSize="10" Margin="0,8,0,0"/>
+                    <TextBlock Grid.Row="1" Text="{Binding StorageUsageText}" Foreground="#8D9AAB" FontSize="10" Margin="0,8,0,0"/>
                 </Grid>
             </StackPanel>
         </Grid>
     </Border>
 </UserControl>
-
-````
+``
 
 ## MiniZotero/Views/SidebarView.axaml.cs
 
@@ -7261,8 +8033,7 @@ namespace MiniZotero.Views
         }
     }
 }
-
-````
+``
 
 ## MiniZotero/Views/TabWorkspaceView.axaml
 
@@ -7284,9 +8055,20 @@ namespace MiniZotero.Views
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.ToolButton:pointerover">
             <Setter Property="Background" Value="#EEF2F7"/>
+        </Style>
+        <Style Selector="Border.ZoomChip">
+            <Setter Property="Background" Value="#F2F5F9"/>
+            <Setter Property="BorderBrush" Value="#D5DDE7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="MinWidth" Value="68"/>
+            <Setter Property="Padding" Value="9,0"/>
         </Style>
         <Style Selector="Button.RailButton">
             <Setter Property="Width" Value="34"/>
@@ -7342,8 +8124,8 @@ namespace MiniZotero.Views
                 Background="#FAFBFD"
                 BorderBrush="#D5DDE7"
                 BorderThickness="0,0,1,1">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,0">
-                <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="7,0,10,0">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Button Classes="ToolButton" Content="&#xE72B;"/>
                     <TextBlock Text="{Binding PdfViewer.CurrentPage}"
                                Foreground="#172033"
@@ -7366,16 +8148,13 @@ namespace MiniZotero.Views
 
                     <Button Classes="ToolButton" Content="&#xE710;"/>
                     <Button Classes="ToolButton" Content="&#xE738;"/>
-                    <Border Background="#F2F5F9"
-                            BorderBrush="#D5DDE7"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Height="30"
-                            Padding="10,0">
+                    <Border Classes="ZoomChip">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <TextBlock Text="{Binding PdfViewer.ZoomPercent, StringFormat='{}{0}%'}"
                                        Foreground="#334155"
                                        FontSize="12"
+                                       MinWidth="35"
+                                       TextAlignment="Center"
                                        VerticalAlignment="Center"/>
                             <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#94A3B8" FontSize="9" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -7479,8 +8258,7 @@ namespace MiniZotero.Views
                              DataContext="{Binding PdfViewer}"/>
     </Grid>
 </UserControl>
-
-````
+``
 
 ## MiniZotero/Views/TabWorkspaceView.axaml.cs
 
@@ -7547,8 +8325,7 @@ namespace MiniZotero.Views
         }
     }
 }
-
-````
+``
 
 ## Planning/OOP Diagram_5_21_2026, 3_29_00 PM.png
 
@@ -7562,3 +8339,157 @@ _Skipped binary or large file. Size: 668079 bytes._
 
 _Skipped binary or large file. Size: 262863 bytes._
 
+## tools/Update-AllCode.ps1
+
+``powershell
+$ErrorActionPreference = "Stop"
+
+$rootPath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$outputPath = Join-Path $rootPath "ALL_CODE.md"
+$excludedDirectoryNames = @(
+    ".git",
+    ".vs",
+    ".idea",
+    ".vscode",
+    "bin",
+    "obj",
+    "node_modules"
+)
+$largeFileThresholdBytes = 100000
+
+$languageByExtension = @{
+    ".axaml" = "xml"
+    ".cs" = "csharp"
+    ".css" = "css"
+    ".csproj" = "xml"
+    ".gitattributes" = "gitattributes"
+    ".gitignore" = "gitignore"
+    ".html" = "html"
+    ".js" = "javascript"
+    ".json" = "json"
+    ".manifest" = "xml"
+    ".md" = "markdown"
+    ".ps1" = "powershell"
+    ".sln" = "text"
+    ".txt" = "text"
+    ".xml" = "xml"
+}
+
+function Get-RelativePath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    $normalizedRootPath = $rootPath
+
+    if (-not $normalizedRootPath.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $normalizedRootPath += [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    $rootUri = [Uri]$normalizedRootPath
+    $pathUri = [Uri]([System.IO.Path]::GetFullPath($Path))
+
+    return [Uri]::UnescapeDataString($rootUri.MakeRelativeUri($pathUri).ToString()).Replace("\", "/")
+}
+
+function Test-IsExcludedPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    $relativePath = Get-RelativePath -Path $Path
+
+    if ($relativePath -eq "ALL_CODE.md") {
+        return $true
+    }
+
+    $segments = $relativePath -split "/"
+
+    foreach ($segment in $segments) {
+        if ($excludedDirectoryNames -contains $segment) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Test-IsBinaryFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    $buffer = New-Object byte[] 8192
+
+    try {
+        $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        try {
+            $bytesRead = $stream.Read($buffer, 0, $buffer.Length)
+
+            for ($index = 0; $index -lt $bytesRead; $index++) {
+                if ($buffer[$index] -eq 0) {
+                    return $true
+                }
+            }
+        }
+        finally {
+            $stream.Dispose()
+        }
+    }
+    catch {
+        return $true
+    }
+
+    return $false
+}
+
+function Get-CodeFenceLanguage {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    $extension = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
+
+    if ($languageByExtension.ContainsKey($extension)) {
+        return $languageByExtension[$extension]
+    }
+
+    return "text"
+}
+
+$builder = [System.Text.StringBuilder]::new()
+[void]$builder.AppendLine("# MiniZotero - All Code")
+[void]$builder.AppendLine()
+[void]$builder.AppendLine("Generated from the current workspace source files. Build output, IDE folders, node_modules, and Git internals are excluded.")
+
+$files = Get-ChildItem -LiteralPath $rootPath -File -Recurse |
+    Where-Object { -not (Test-IsExcludedPath -Path $_.FullName) } |
+    Sort-Object { Get-RelativePath -Path $_.FullName }
+
+foreach ($file in $files) {
+    $relativePath = Get-RelativePath -Path $file.FullName
+
+    [void]$builder.AppendLine()
+    [void]$builder.AppendLine("## $relativePath")
+    [void]$builder.AppendLine()
+
+    if ($file.Length -gt $largeFileThresholdBytes -or (Test-IsBinaryFile -Path $file.FullName)) {
+        [void]$builder.AppendLine("_Skipped binary or large file. Size: $($file.Length) bytes._")
+        continue
+    }
+
+    $language = Get-CodeFenceLanguage -Path $file.FullName
+    $content = [System.IO.File]::ReadAllText($file.FullName)
+
+    [void]$builder.AppendLine("````$language")
+    [void]$builder.AppendLine($content.TrimEnd())
+    [void]$builder.AppendLine("````")
+}
+
+[System.IO.File]::WriteAllText($outputPath, $builder.ToString(), [System.Text.UTF8Encoding]::new($false))
+Write-Host "Updated ALL_CODE.md"
+``
