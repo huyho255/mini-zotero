@@ -32,15 +32,17 @@ namespace MiniZotero.ViewModels
         private string? _countText;
     }
 
-    public sealed class SmartCollectionItem
+    public sealed partial class SmartCollectionItem : ObservableObject
     {
         public SmartCollectionItem(
             string name,
+            string kind,
             string icon,
             string iconColor,
-            int count)
+            int count = 0)
         {
             Name = name;
+            Kind = kind;
             Icon = icon;
             IconColor = iconColor;
             Count = count;
@@ -48,11 +50,15 @@ namespace MiniZotero.ViewModels
 
         public string Name { get; }
 
+        public string Kind { get; }
+
         public string Icon { get; }
 
         public string IconColor { get; }
 
-        public int Count { get; }
+        [ObservableProperty]
+        private int _count;
+
     }
 
     public sealed partial class TagItem : ObservableObject
@@ -77,7 +83,7 @@ namespace MiniZotero.ViewModels
             bool isFolder,
             DocumentItem? document,
             int count = 0,
-            bool isExpanded = true)
+            bool isExpanded = false)
         {
             Name = name;
             Icon = icon;
@@ -105,6 +111,14 @@ namespace MiniZotero.ViewModels
             ? IsExpanded ? "\uE70D" : "\uE76C"
             : string.Empty;
 
+        public string IconForeground => IsFolder ? "#7DD3FC" : "#52C7FF";
+
+        public int IconFontSize => IsFolder ? 13 : 12;
+
+        public string NameForeground => IsFolder ? "#F2F6FC" : "#E4EBF4";
+
+        public string NameFontWeight => IsFolder ? "SemiBold" : "Normal";
+
         public bool IsStarred => Document?.IsStarred == true;
 
         public bool IsStarButtonVisible => IsDocument && Document?.IsDeleted != true;
@@ -116,7 +130,7 @@ namespace MiniZotero.ViewModels
 
         public static DocumentExplorerItem File(DocumentItem document)
         {
-            return new DocumentExplorerItem(document.Title, "\uE8A5", isFolder: false, document);
+            return new DocumentExplorerItem(document.Title, "\uE7C3", isFolder: false, document);
         }
     }
 
@@ -160,16 +174,13 @@ namespace MiniZotero.ViewModels
             NavigationItems.Add(_starredNavigationItem);
             NavigationItems.Add(_trashNavigationItem);
             SelectedNavigationItem = _libraryNavigationItem;
-
-            SmartCollections.Add(new SmartCollectionItem("Đang đọc dở", "\uE7C1", "#8DD6A5", 24));
-            SmartCollections.Add(new SmartCollectionItem("Tài liệu C#", "\uE8A5", "#D9C7FF", 56));
-            SmartCollections.Add(new SmartCollectionItem("Bài báo khoa học", "\uE8A5", "#D175FF", 18));
-            SmartCollections.Add(new SmartCollectionItem("System Design", "\uE8A5", "#D6D300", 31));
-            SmartCollections.Add(new SmartCollectionItem("Sách hay", "\uE8A5", "#36D6D6", 12));
-            SmartCollections.Add(new SmartCollectionItem("Data Sheet", "\uE8A5", "#9CCBFF", 7));
-            SmartCollections.Add(new SmartCollectionItem("Archived", "\uE8A5", "#B774FF", 102));
-            SelectedSmartCollection = SmartCollections.FirstOrDefault(collection =>
-                collection.Name == "Tài liệu C#");
+            SmartCollections.Clear();
+            SmartCollections.Add(new SmartCollectionItem("Đang đọc dở", "reading", "\uE7C1", "#8DD6A5"));
+            SmartCollections.Add(new SmartCollectionItem("Mới thêm", "new", "\uE8A5", "#9CCBFF"));
+            SmartCollections.Add(new SmartCollectionItem("Đã mở gần đây", "recent", "\uE823", "#D9C7FF"));
+            SmartCollections.Add(new SmartCollectionItem("Chưa đọc", "unread", "\uE7BE", "#FBBF24"));
+            SelectedSmartCollection = null;
+            SelectedNavigationItem = _libraryNavigationItem;
 
             var settings = _settingsRepository.LoadSettings();
             WatchFolderPath = settings.WatchFolderPath;
@@ -263,13 +274,15 @@ namespace MiniZotero.ViewModels
             HasSearchText && SearchResultDocuments.Count == 0;
 
         public string CurrentDocumentSectionTitle =>
-            SelectedNavigationItem?.Name switch
-            {
-                "Recent" => "RECENT",
-                "Starred" => "STARRED",
-                "Trash" => "TRASH",
-                _ => "DOCUMENTS"
-            };
+            SelectedSmartCollection is not null
+                ? SelectedSmartCollection.Name.ToUpperInvariant()
+                : SelectedNavigationItem?.Name switch
+                {
+                    "Recent" => "RECENT DOCUMENTS",
+                    "Starred" => "STARRED",
+                    "Trash" => "TRASH",
+                    _ => "DOCUMENTS"
+                };
 
         public bool IsWatchFolderConfigured => !string.IsNullOrWhiteSpace(WatchFolderPath);
 
@@ -334,6 +347,19 @@ namespace MiniZotero.ViewModels
             }
         }
 
+        partial void OnSelectedSmartCollectionChanged(SmartCollectionItem? value)
+        {
+            if (value is not null)
+            {
+                SelectedNavigationItem = null;
+                SelectedTag = null;
+            }
+
+            ApplyDocumentFilter();
+            ApplySearchFilter();
+            OnPropertyChanged(nameof(CurrentDocumentSectionTitle));
+        }
+
         partial void OnSelectedDocumentChanged(DocumentItem? value)
         {
             if (value is null)
@@ -389,6 +415,12 @@ namespace MiniZotero.ViewModels
 
         partial void OnSelectedNavigationItemChanged(SidebarNavigationItem? value)
         {
+            if (value is not null)
+            {
+                SelectedSmartCollection = null;
+                SelectedTag = null;
+            }
+
             ApplyDocumentFilter();
             ApplySearchFilter();
             OnPropertyChanged(nameof(IsTrashSelected));
@@ -546,7 +578,7 @@ namespace MiniZotero.ViewModels
             FilteredDocuments.Clear();
             DocumentExplorerItems.Clear();
 
-            var documents = GetNavigationDocuments();
+            var documents = ApplySmartCollectionFilter(GetNavigationDocuments());
 
             if (SelectedTag is not null)
             {
@@ -636,8 +668,8 @@ namespace MiniZotero.ViewModels
         {
             if (!_expandedFolders.TryGetValue(folderName, out var isExpanded))
             {
-                _expandedFolders[folderName] = true;
-                return true;
+                _expandedFolders[folderName] = false;
+                return false;
             }
 
             return isExpanded;
@@ -671,7 +703,7 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            var documents = GetNavigationDocuments()
+            var documents = ApplySmartCollectionFilter(GetNavigationDocuments())
                 .Where(document => MatchesSearch(document, query))
                 .OrderBy(document => document.Title);
 
@@ -721,8 +753,29 @@ namespace MiniZotero.ViewModels
             };
         }
 
+        private IEnumerable<DocumentItem> ApplySmartCollectionFilter(IEnumerable<DocumentItem> documents)
+        {
+            return SelectedSmartCollection?.Kind switch
+            {
+                "reading" => documents.Where(document => document.LastReadPage > 1),
+
+                "new" => documents.Where(document =>
+                    document.AddedAt >= DateTimeOffset.Now.AddDays(-7)),
+
+                "recent" => documents
+                    .Where(document => document.LastOpenedAt is not null)
+                    .OrderByDescending(document => document.LastOpenedAt),
+
+                "unread" => documents.Where(document => document.LastOpenedAt is null),
+
+                _ => documents
+            };
+        }
+
         private void NotifyDocumentStateChanged()
         {
+            RefreshSmartCollectionCounts();
+
             _libraryNavigationItem.CountText = Documents.Count(document => !document.IsDeleted).ToString();
             _recentNavigationItem.CountText = Documents.Count(document => !document.IsDeleted && document.LastOpenedAt is not null).ToString();
             _starredNavigationItem.CountText = Documents.Count(document => !document.IsDeleted && document.IsStarred).ToString();
@@ -742,6 +795,31 @@ namespace MiniZotero.ViewModels
             OnPropertyChanged(nameof(IsTrashDocumentActionsVisible));
             OnPropertyChanged(nameof(IsTagEditorVisible));
             OnPropertyChanged(nameof(CurrentDocumentSectionTitle));
+        }
+
+        private void RefreshSmartCollectionCounts()
+        {
+            var newDocumentThreshold = DateTimeOffset.Now.AddDays(-7);
+
+            foreach (var collection in SmartCollections)
+            {
+                collection.Count = collection.Kind switch
+                {
+                    "reading" => Documents.Count(document =>
+                        !document.IsDeleted && document.LastReadPage > 1),
+
+                    "new" => Documents.Count(document =>
+                        !document.IsDeleted && document.AddedAt >= newDocumentThreshold),
+
+                    "recent" => Documents.Count(document =>
+                        !document.IsDeleted && document.LastOpenedAt is not null),
+
+                    "unread" => Documents.Count(document =>
+                        !document.IsDeleted && document.LastOpenedAt is null),
+
+                    _ => 0
+                };
+            }
         }
     }
 }

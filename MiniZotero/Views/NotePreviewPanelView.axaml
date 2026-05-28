@@ -26,6 +26,19 @@
         <Style Selector="Button.PanelIconButton:pointerover">
             <Setter Property="Background" Value="#F1F5F9"/>
         </Style>
+        <Style Selector="Button.ExportButton">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#D5DDE7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.ExportButton:pointerover">
+            <Setter Property="Background" Value="#F1F5F9"/>
+        </Style>
         <Style Selector="Button.FormatButton">
             <Setter Property="Width" Value="27"/>
             <Setter Property="Height" Value="27"/>
@@ -68,6 +81,10 @@
                         <Button Classes="PanelIconButton" Content="&#xE738;"/>
                         <Button Classes="PanelIconButton" Content="&#xE710;"/>
                         <Button Classes="PanelIconButton" Content="&#xE8A7;"/>
+                        <Button Classes="ExportButton"
+                                Content="Export"
+                                Click="OnExportMarkdownClicked"
+                                IsVisible="{Binding HasDocument}"/>
                         <Button Classes="PanelIconButton" Content="&#xE713;"/>
                     </StackPanel>
                 </Grid>

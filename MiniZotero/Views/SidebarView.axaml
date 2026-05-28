@@ -264,28 +264,45 @@
                                         <Grid Height="24" ColumnDefinitions="Auto,Auto,*,Auto">
                                             <Button Classes="SidebarIconButton"
                                                     Content="{Binding ChevronIcon}"
-                                                    Width="14"
+                                                    Width="24"
                                                     Height="24"
+                                                    Padding="0"
+                                                    Margin="0,1,0,0"
                                                     FontSize="8"
+                                                    HorizontalContentAlignment="Center"
+                                                    VerticalContentAlignment="Center"
                                                     Command="{Binding #Root.DataContext.ToggleFolderCommand}"
                                                     CommandParameter="{Binding}"
                                                     IsVisible="{Binding IsFolder}"/>
-                                            <TextBlock Text=""
-                                                       Width="14"
+                                            <Border Width="24"
                                                        IsVisible="{Binding IsDocument}"/>
 
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding Icon}"
-                                                       FontFamily="Segoe MDL2 Assets"
-                                                       Foreground="#9CCBFF"
-                                                       FontSize="12"
-                                                       Width="18"
-                                                       VerticalAlignment="Center"/>
+                                            <Grid Grid.Column="1"
+                                                  Width="20"
+                                                  Margin="0,0,5,0"
+                                                  VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Icon}"
+                                                           FontFamily="Segoe MDL2 Assets"
+                                                           Foreground="{Binding IconForeground}"
+                                                           FontSize="{Binding IconFontSize}"
+                                                           VerticalAlignment="Center"
+                                                           IsVisible="{Binding IsFolder}"/>
+
+                                                <Canvas Width="16"
+                                                        Height="16"
+                                                        VerticalAlignment="Center"
+                                                        IsVisible="{Binding IsDocument}">
+                                                    <Path Stroke="#F04444"
+                                                          StrokeThickness="1.7"
+                                                          StrokeLineCap="Round"
+                                                          Data="M8,2 C7.35,5.65 6.05,9.2 4.2,13 M8,2 C8.75,6.5 10.15,9.65 12.9,13 M4.2,13 C6.45,11.55 9.55,10.85 12.9,13 M5.35,9.95 C7.15,9.15 9.35,9.05 11.15,9.55"/>
+                                                </Canvas>
+                                            </Grid>
 
                                             <TextBlock Grid.Column="2"
                                                        Text="{Binding Name}"
-                                                       Foreground="#F2F6FC"
-                                                       FontWeight="SemiBold"
+                                                       Foreground="{Binding NameForeground}"
+                                                       FontWeight="{Binding NameFontWeight}"
                                                        FontSize="12"
                                                        VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"/>
@@ -318,19 +335,43 @@
                                 Margin="4,10,4,0"
                                 IsVisible="{Binding HasSelectedDocument}">
                         <Button Classes="DocumentActionButton"
-                                Content="Move to Trash"
                                 Command="{Binding MoveSelectedDocumentToTrashCommand}"
-                                IsVisible="{Binding IsMoveToTrashVisible}"/>
+                                IsVisible="{Binding IsMoveToTrashVisible}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="&#xE74D;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="Move to Trash"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button Classes="DocumentActionButton"
-                                Content="Restore"
                                 Command="{Binding RestoreSelectedDocumentCommand}"
-                                IsVisible="{Binding IsTrashDocumentActionsVisible}"/>
+                                IsVisible="{Binding IsTrashDocumentActionsVisible}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="&#xE845;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="Restore"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button Classes="DocumentActionButton"
-                                Content="Delete Forever"
                                 Command="{Binding DeleteSelectedDocumentForeverCommand}"
-                                IsVisible="{Binding IsTrashDocumentActionsVisible}"/>
+                                IsVisible="{Binding IsTrashDocumentActionsVisible}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="&#xE107;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="12"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="Delete Forever"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
 
                     <Grid ColumnDefinitions="*,Auto" Margin="4,18,4,8">

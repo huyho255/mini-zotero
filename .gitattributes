@@ -1,10 +1,5 @@
 * text=auto
 
 # Keep GitHub language stats focused on C#.
-*.cs linguist-language=C#
-*.axaml linguist-vendored
-*.xaml linguist-vendored
-*.csproj linguist-vendored
-*.sln linguist-vendored
-*.manifest linguist-vendored
-*.ico linguist-vendored
+* linguist-vendored
+*.cs linguist-vendored=false linguist-language=C#
