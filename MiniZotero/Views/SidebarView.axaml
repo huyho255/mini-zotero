@@ -377,19 +377,6 @@
                                 Margin="4,10,4,0"
                                 IsVisible="{Binding HasSelectedDocument}">
                         <Button Classes="DocumentActionButton"
-                                Command="{Binding RequestOpenDocumentCommand}"
-                                CommandParameter="{Binding SelectedDocument}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="&#xE8A7;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="12"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Text="Open Document"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Classes="DocumentActionButton"
                                 Command="{Binding AddSelectedDocumentToCollectionCommand}"
                                 IsVisible="{Binding HasSelectedCollection}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
