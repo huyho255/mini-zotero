@@ -1,10 +1,14 @@
 using MiniZotero.Repositories;
 using MiniZotero.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace MiniZotero.ViewModels
 {
     public partial class MainWindowViewModel : ViewModelBase
     {
+        [ObservableProperty]
+        private string _statusMessage = "Ready";
+
         public MainWindowViewModel()
         {
             var storageService = new AppStorageService();
@@ -16,18 +20,22 @@ namespace MiniZotero.ViewModels
             var watchFolderService = new WatchFolderService();
             var markdownExportService = new MarkdownExportService();
             var storageUsageService = new StorageUsageService();
+            var noteService = new NoteService(noteRepository, markdownExportService);
+            var highlightService = new HighlightService(highlightRepository);
+            var libraryService = new LibraryService(documentRepository, noteService);
+            var tagService = new TagService();
 
             Sidebar = new SidebarViewModel(
-                documentRepository,
+                libraryService,
+                tagService,
                 settingsRepository,
                 watchFolderService,
                 storageUsageService);
             Notes = new NotePreviewPanelViewModel(
-                noteRepository,
-                highlightRepository,
-                markdownExportService);
+                noteService,
+                highlightService);
             Workspace = new TabWorkspaceViewModel(document =>
-                documentRepository.SaveDocuments(Sidebar.Documents));
+                libraryService.SaveDocuments(Sidebar.Documents));
 
             Workspace.PdfViewer.HighlightCreated += (text, pageNumber, rects) =>
             {
@@ -44,6 +52,14 @@ namespace MiniZotero.ViewModels
                 Workspace.PdfViewer.NavigateToHighlight(highlight);
             };
 
+            Notes.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(NotePreviewPanelViewModel.StatusMessage))
+                {
+                    StatusMessage = Notes.StatusMessage;
+                }
+            };
+
             Workspace.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(TabWorkspaceViewModel.ActiveDocument))
@@ -55,6 +71,11 @@ namespace MiniZotero.ViewModels
 
             Sidebar.PropertyChanged += (_, e) =>
             {
+                if (e.PropertyName == nameof(SidebarViewModel.StatusMessage))
+                {
+                    StatusMessage = Sidebar.StatusMessage;
+                }
+
                 if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
                     Sidebar.SelectedDocument is { } document)
                 {
@@ -79,5 +100,6 @@ namespace MiniZotero.ViewModels
                 : $"{OpenDocumentCount} documents open";
 
         public string LibraryStatusText => "Local library";
+
     }
 }

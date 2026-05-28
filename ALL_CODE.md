@@ -410,6 +410,175 @@ Global
 EndGlobal
 ``
 
+## MiniZotero.Tests/FeatureServiceTests.cs
+
+``csharp
+using System;
+using System.IO;
+using System.Linq;
+using MiniZotero.Models;
+using MiniZotero.Repositories;
+using MiniZotero.Services;
+using Xunit;
+
+namespace MiniZotero.Tests
+{
+    public sealed class FeatureServiceTests
+    {
+        [Fact]
+        public void LibraryServiceImportSkipsDuplicate()
+        {
+            using var directory = new TemporaryDirectory();
+            var service = CreateLibraryService(directory, out _);
+            var documents = new System.Collections.Generic.List<DocumentItem>();
+            var pdfPath = Path.Combine(directory.Path, "doc.pdf");
+            File.WriteAllBytes(pdfPath, [1, 2, 3]);
+
+            var firstResult = service.ImportDocument(pdfPath, documents);
+            var secondResult = service.ImportDocument(pdfPath, documents);
+
+            Assert.True(firstResult.Succeeded);
+            Assert.True(secondResult.Succeeded);
+            Assert.Single(documents);
+            Assert.Equal(ImportDocumentStatus.SkippedDuplicate, secondResult.Value?.Status);
+        }
+
+        [Fact]
+        public void LibraryServiceTrashRestoreAndDeleteForeverUpdateLibrary()
+        {
+            using var directory = new TemporaryDirectory();
+            var service = CreateLibraryService(directory, out _);
+            var documents = new System.Collections.Generic.List<DocumentItem>();
+            var pdfPath = Path.Combine(directory.Path, "doc.pdf");
+            File.WriteAllBytes(pdfPath, [1, 2, 3]);
+            var document = service.ImportDocument(pdfPath, documents).Value!.Document;
+
+            service.MoveToTrash(document, documents);
+            Assert.True(document.IsDeleted);
+
+            service.Restore(document, documents);
+            Assert.False(document.IsDeleted);
+
+            service.MoveToTrash(document, documents);
+            service.DeleteForever(document, documents);
+
+            Assert.Empty(documents);
+            Assert.False(File.Exists(document.FilePath));
+        }
+
+        [Fact]
+        public void TagServiceAddsAndRemovesTagsIgnoringCase()
+        {
+            var service = new TagService();
+            var document = new DocumentItem();
+
+            Assert.True(service.AddTag(document, " CMOS "));
+            Assert.False(service.AddTag(document, "cmos"));
+            Assert.Single(document.Tags);
+
+            Assert.True(service.RemoveTag(document, "cMoS"));
+            Assert.Empty(document.Tags);
+        }
+
+        [Fact]
+        public void LibraryServiceSearchMatchesNoteText()
+        {
+            using var directory = new TemporaryDirectory();
+            var service = CreateLibraryService(directory, out var noteService);
+            var document = new DocumentItem { Id = "doc", Title = "Title" };
+            noteService.SaveNote(document.Id, "contains heartbeat sensor notes");
+
+            Assert.True(service.MatchesSearch(document, "heartbeat"));
+        }
+
+        [Fact]
+        public void NoteServiceExportReturnsFailureForBlankPath()
+        {
+            using var directory = new TemporaryDirectory();
+            var storage = new AppStorageService(Path.Combine(directory.Path, "app"));
+            var service = new NoteService(
+                new NoteRepository(storage),
+                new MarkdownExportService());
+
+            var result = service.ExportDocumentNotes(
+                new DocumentItem { Title = "Doc" },
+                "note",
+                [],
+                string.Empty);
+
+            Assert.False(result.Succeeded);
+        }
+
+        [Fact]
+        public void HighlightServiceAddsAndDeletesHighlights()
+        {
+            using var directory = new TemporaryDirectory();
+            var storage = new AppStorageService(Path.Combine(directory.Path, "app"));
+            var repository = new HighlightRepository(storage);
+            var service = new HighlightService(repository);
+            var document = new DocumentItem { Id = "doc", Title = "Doc" };
+
+            var addResult = service.AddHighlight(
+                document,
+                "selected text",
+                2,
+                [new HighlightRect { PageNumber = 2, Width = 10, Height = 4 }]);
+
+            Assert.True(addResult.Succeeded);
+            Assert.Single(service.LoadHighlights(document.Id));
+
+            var deleteResult = service.DeleteHighlight(document.Id, addResult.Value!.Id);
+
+            Assert.True(deleteResult.Succeeded);
+            Assert.Empty(service.LoadHighlights(document.Id));
+        }
+
+        [Fact]
+        public void LibraryServiceRecentAndUnreadUseLastOpenedAt()
+        {
+            using var directory = new TemporaryDirectory();
+            var service = CreateLibraryService(directory, out _);
+            var oldDocument = new DocumentItem
+            {
+                Title = "Old",
+                LastOpenedAt = DateTimeOffset.Now.AddDays(-1)
+            };
+            var newDocument = new DocumentItem
+            {
+                Title = "New",
+                LastOpenedAt = DateTimeOffset.Now
+            };
+            var unreadDocument = new DocumentItem
+            {
+                Title = "Unread",
+                LastOpenedAt = null
+            };
+            var documents = new[] { oldDocument, unreadDocument, newDocument };
+
+            var recent = service.GetNavigationDocuments(documents, "Recent").ToList();
+            var unread = service.ApplySmartCollectionFilter(documents, "unread").ToList();
+
+            Assert.Equal("New", recent[0].Title);
+            Assert.Single(unread);
+            Assert.Equal("Unread", unread[0].Title);
+        }
+
+        private static LibraryService CreateLibraryService(
+            TemporaryDirectory directory,
+            out NoteService noteService)
+        {
+            var storage = new AppStorageService(Path.Combine(directory.Path, "app"));
+            var documentRepository = new DocumentRepository(storage, new AutoTagService());
+            noteService = new NoteService(
+                new NoteRepository(storage),
+                new MarkdownExportService());
+
+            return new LibraryService(documentRepository, noteService);
+        }
+    }
+}
+``
+
 ## MiniZotero.Tests/JsonFileStoreTests.cs
 
 ``csharp
@@ -655,6 +824,109 @@ namespace MiniZotero.Tests
             catch (UnauthorizedAccessException)
             {
             }
+        }
+    }
+}
+``
+
+## MiniZotero.Tests/ViewModelAndServiceTests.cs
+
+``csharp
+using System;
+using System.Collections.Generic;
+using System.IO;
+using MiniZotero.Models;
+using MiniZotero.Repositories;
+using MiniZotero.Services;
+using MiniZotero.ViewModels;
+using Xunit;
+
+namespace MiniZotero.Tests
+{
+    public sealed class ViewModelAndServiceTests
+    {
+        [Fact]
+        public void CloseActiveDocumentClearsActiveDocumentAndViewer()
+        {
+            var workspace = new TabWorkspaceViewModel(_ => { });
+            var document = new DocumentItem(
+                "doc-1",
+                "Document",
+                "missing.pdf",
+                "missing.pdf",
+                DateTimeOffset.UtcNow,
+                null,
+                1);
+
+            workspace.OpenDocument(document);
+
+            Assert.NotNull(workspace.ActiveDocument);
+            Assert.False(workspace.PdfViewer.HasDocumentLoaded);
+
+            workspace.ClearActiveDocument();
+
+            Assert.Null(workspace.ActiveDocument);
+            Assert.False(workspace.PdfViewer.HasDocumentLoaded);
+            Assert.Equal("Ready", workspace.PdfViewer.StatusText);
+            Assert.Equal(1, workspace.PdfViewer.CurrentPage);
+        }
+
+        [Fact]
+        public void PdfViewerCommandsSendExpectedScriptStrings()
+        {
+            var viewModel = new PdfViewerViewModel();
+            var scripts = new List<string>();
+            viewModel.ScriptRequested += scripts.Add;
+
+            viewModel.GoToPreviousPageCommand.Execute(null);
+            viewModel.GoToNextPageCommand.Execute(null);
+            viewModel.ZoomInCommand.Execute(null);
+            viewModel.ZoomOutCommand.Execute(null);
+            viewModel.SetHandToolCommand.Execute(null);
+            viewModel.SetSelectToolCommand.Execute(null);
+            viewModel.SetHighlightToolCommand.Execute(null);
+
+            Assert.Contains("window.miniZoteroPdf?.goToPage?.(1);", scripts);
+            Assert.Contains("window.miniZoteroPdf?.goToPage?.(2);", scripts);
+            Assert.Contains("window.miniZoteroPdf?.zoomIn?.();", scripts);
+            Assert.Contains("window.miniZoteroPdf?.zoomOut?.();", scripts);
+            Assert.Contains("window.miniZoteroPdf?.setToolMode?.('hand');", scripts);
+            Assert.Contains("window.miniZoteroPdf?.setToolMode?.('select');", scripts);
+            Assert.Contains("window.miniZoteroPdf?.setToolMode?.('highlight');", scripts);
+        }
+
+        [Fact]
+        public void LibraryServiceMoveRestoreAndDeleteForeverUpdateDocumentState()
+        {
+            using var directory = new TemporaryDirectory();
+            var storage = new AppStorageService(Path.Combine(directory.Path, "app"));
+            var documentRepository = new DocumentRepository(storage, new AutoTagService());
+            var noteRepository = new NoteRepository(storage);
+            var noteService = new NoteService(noteRepository, new MarkdownExportService());
+            var libraryService = new LibraryService(documentRepository, noteService);
+
+            var sourcePath = Path.Combine(directory.Path, "document.pdf");
+            File.WriteAllBytes(sourcePath, new byte[] { 1, 2, 3 });
+
+            var documents = new List<DocumentItem>();
+            var result = libraryService.ImportDocument(sourcePath, documents);
+            Assert.True(result.Succeeded);
+            Assert.NotNull(result.Value);
+
+            var document = result.Value.Document;
+            Assert.False(document.IsDeleted);
+
+            libraryService.MoveToTrash(document, documents);
+            Assert.True(document.IsDeleted);
+            Assert.NotNull(document.DeletedAt);
+
+            libraryService.Restore(document, documents);
+            Assert.False(document.IsDeleted);
+            Assert.Null(document.DeletedAt);
+
+            libraryService.MoveToTrash(document, documents);
+            libraryService.DeleteForever(document, documents);
+            Assert.DoesNotContain(document, documents);
         }
     }
 }
@@ -3885,6 +4157,86 @@ namespace MiniZotero.Models
 }
 ``
 
+## MiniZotero/Models/ImportDocumentResult.cs
+
+``csharp
+namespace MiniZotero.Models
+{
+    public sealed class ImportDocumentResult
+    {
+        public ImportDocumentResult(
+            DocumentItem document,
+            ImportDocumentStatus status)
+        {
+            Document = document;
+            Status = status;
+        }
+
+        public DocumentItem Document { get; }
+
+        public ImportDocumentStatus Status { get; }
+    }
+
+    public enum ImportDocumentStatus
+    {
+        Imported,
+        SkippedDuplicate,
+        RestoredFromTrash
+    }
+}
+``
+
+## MiniZotero/Models/OperationResult.cs
+
+``csharp
+namespace MiniZotero.Models
+{
+    public class OperationResult
+    {
+        protected OperationResult(bool succeeded, string message)
+        {
+            Succeeded = succeeded;
+            Message = message;
+        }
+
+        public bool Succeeded { get; }
+
+        public string Message { get; }
+
+        public static OperationResult Success(string message = "")
+        {
+            return new OperationResult(true, message);
+        }
+
+        public static OperationResult Failure(string message)
+        {
+            return new OperationResult(false, message);
+        }
+    }
+
+    public sealed class OperationResult<T> : OperationResult
+    {
+        private OperationResult(bool succeeded, string message, T? value)
+            : base(succeeded, message)
+        {
+            Value = value;
+        }
+
+        public T? Value { get; }
+
+        public static OperationResult<T> Success(T value, string message = "")
+        {
+            return new OperationResult<T>(true, message, value);
+        }
+
+        public static new OperationResult<T> Failure(string message)
+        {
+            return new OperationResult<T>(false, message, default);
+        }
+    }
+}
+``
+
 ## MiniZotero/Program.cs
 
 ``csharp
@@ -4487,6 +4839,78 @@ namespace MiniZotero.Services
 }
 ``
 
+## MiniZotero/Services/HighlightService.cs
+
+``csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using MiniZotero.Models;
+using MiniZotero.Repositories;
+
+namespace MiniZotero.Services
+{
+    public sealed class HighlightService
+    {
+        private readonly HighlightRepository _highlightRepository;
+
+        public HighlightService(HighlightRepository highlightRepository)
+        {
+            _highlightRepository = highlightRepository;
+        }
+
+        public IReadOnlyList<HighlightItem> LoadHighlights(string documentId)
+        {
+            return _highlightRepository.LoadHighlights(documentId);
+        }
+
+        public OperationResult<HighlightItem> AddHighlight(
+            DocumentItem document,
+            string text,
+            int pageNumber,
+            IReadOnlyList<HighlightRect> rects)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return OperationResult<HighlightItem>.Failure("Select text before creating a highlight.");
+            }
+
+            var highlight = new HighlightItem
+            {
+                DocumentId = document.Id,
+                PageNumber = pageNumber < 1 ? 1 : pageNumber,
+                Text = text.Trim(),
+                Color = "yellow",
+                Rects = rects.ToList()
+            };
+
+            try
+            {
+                _highlightRepository.AddHighlight(highlight);
+                return OperationResult<HighlightItem>.Success(highlight, "Highlight saved.");
+            }
+            catch (Exception)
+            {
+                return OperationResult<HighlightItem>.Failure("Could not save the highlight.");
+            }
+        }
+
+        public OperationResult DeleteHighlight(string documentId, string highlightId)
+        {
+            try
+            {
+                _highlightRepository.DeleteHighlight(documentId, highlightId);
+                return OperationResult.Success("Highlight deleted.");
+            }
+            catch (Exception)
+            {
+                return OperationResult.Failure("Could not delete the highlight.");
+            }
+        }
+    }
+}
+``
+
 ## MiniZotero/Services/JsonFileStore.cs
 
 ``csharp
@@ -4579,6 +5003,221 @@ namespace MiniZotero.Services
                 {
                 }
             }
+        }
+    }
+}
+``
+
+## MiniZotero/Services/LibraryService.cs
+
+``csharp
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using MiniZotero.Models;
+using MiniZotero.Repositories;
+
+namespace MiniZotero.Services
+{
+    public sealed class LibraryService
+    {
+        private readonly DocumentRepository _documentRepository;
+        private readonly NoteService _noteService;
+
+        public LibraryService(
+            DocumentRepository documentRepository,
+            NoteService noteService)
+        {
+            _documentRepository = documentRepository;
+            _noteService = noteService;
+        }
+
+        public IReadOnlyList<DocumentItem> LoadDocuments()
+        {
+            return _documentRepository.LoadDocuments();
+        }
+
+        public OperationResult<ImportDocumentResult> ImportDocument(
+            string filePath,
+            IList<DocumentItem> documents)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return OperationResult<ImportDocumentResult>.Failure("Choose a PDF file to import.");
+            }
+
+            try
+            {
+                var document = _documentRepository.ImportDocument(filePath, documents);
+                var existingDocument = documents.FirstOrDefault(existingDocument =>
+                    existingDocument.Id == document.Id);
+                var status = ImportDocumentStatus.Imported;
+
+                if (existingDocument is null)
+                {
+                    documents.Add(document);
+                }
+                else if (existingDocument.IsDeleted)
+                {
+                    existingDocument.IsDeleted = false;
+                    existingDocument.DeletedAt = null;
+                    status = ImportDocumentStatus.RestoredFromTrash;
+                }
+                else
+                {
+                    status = ImportDocumentStatus.SkippedDuplicate;
+                }
+
+                SaveDocuments(documents);
+
+                return OperationResult<ImportDocumentResult>.Success(
+                    new ImportDocumentResult(document, status),
+                    GetImportMessage(status, document.Title));
+            }
+            catch (FileNotFoundException)
+            {
+                return OperationResult<ImportDocumentResult>.Failure("The selected PDF file no longer exists.");
+            }
+            catch (IOException)
+            {
+                return OperationResult<ImportDocumentResult>.Failure("Could not import the PDF file.");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return OperationResult<ImportDocumentResult>.Failure("MiniZotero does not have permission to import this PDF.");
+            }
+        }
+
+        public void SaveDocuments(IEnumerable<DocumentItem> documents)
+        {
+            _documentRepository.SaveDocuments(documents);
+        }
+
+        public void MarkDocumentOpened(DocumentItem document, IEnumerable<DocumentItem> documents)
+        {
+            document.LastOpenedAt = DateTimeOffset.Now;
+            SaveDocuments(documents);
+        }
+
+        public void ToggleStar(DocumentItem document, IEnumerable<DocumentItem> documents)
+        {
+            if (document.IsDeleted)
+            {
+                return;
+            }
+
+            document.IsStarred = !document.IsStarred;
+            SaveDocuments(documents);
+        }
+
+        public void MoveToTrash(DocumentItem document, IEnumerable<DocumentItem> documents)
+        {
+            if (document.IsDeleted)
+            {
+                return;
+            }
+
+            document.IsDeleted = true;
+            document.DeletedAt = DateTimeOffset.Now;
+            SaveDocuments(documents);
+        }
+
+        public void Restore(DocumentItem document, IEnumerable<DocumentItem> documents)
+        {
+            if (!document.IsDeleted)
+            {
+                return;
+            }
+
+            document.IsDeleted = false;
+            document.DeletedAt = null;
+            SaveDocuments(documents);
+        }
+
+        public void DeleteForever(DocumentItem document, IList<DocumentItem> documents)
+        {
+            if (!document.IsDeleted)
+            {
+                return;
+            }
+
+            _documentRepository.DeleteStoredPdfFile(document);
+            documents.Remove(document);
+            SaveDocuments(documents);
+        }
+
+        public IEnumerable<DocumentItem> GetNavigationDocuments(
+            IEnumerable<DocumentItem> documents,
+            string? navigationName)
+        {
+            return navigationName switch
+            {
+                "Recent" => documents
+                    .Where(document => !document.IsDeleted && document.LastOpenedAt is not null)
+                    .OrderByDescending(document => document.LastOpenedAt),
+
+                "Starred" => documents
+                    .Where(document => !document.IsDeleted && document.IsStarred)
+                    .OrderBy(document => document.Title),
+
+                "Trash" => documents
+                    .Where(document => document.IsDeleted)
+                    .OrderByDescending(document => document.DeletedAt),
+
+                _ => documents
+                    .Where(document => !document.IsDeleted)
+                    .OrderBy(document => document.Title)
+            };
+        }
+
+        public IEnumerable<DocumentItem> ApplySmartCollectionFilter(
+            IEnumerable<DocumentItem> documents,
+            string? smartCollectionKind)
+        {
+            return smartCollectionKind switch
+            {
+                "reading" => documents.Where(document => document.LastReadPage > 1),
+
+                "new" => documents.Where(document =>
+                    document.AddedAt >= DateTimeOffset.Now.AddDays(-7)),
+
+                "recent" => documents
+                    .Where(document => document.LastOpenedAt is not null)
+                    .OrderByDescending(document => document.LastOpenedAt),
+
+                "unread" => documents.Where(document => document.LastOpenedAt is null),
+
+                _ => documents
+            };
+        }
+
+        public bool MatchesSearch(DocumentItem document, string keyword)
+        {
+            return Contains(document.Title, keyword) ||
+                   Contains(document.FilePath, keyword) ||
+                   Contains(document.OriginalFilePath, keyword) ||
+                   document.Tags.Any(tag => Contains(tag, keyword)) ||
+                   Contains(_noteService.LoadNote(document.Id), keyword);
+        }
+
+        private static bool Contains(string? value, string keyword)
+        {
+            return !string.IsNullOrWhiteSpace(value) &&
+                   value.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string GetImportMessage(
+            ImportDocumentStatus status,
+            string title)
+        {
+            return status switch
+            {
+                ImportDocumentStatus.Imported => $"Imported {title}.",
+                ImportDocumentStatus.RestoredFromTrash => $"Restored {title}.",
+                ImportDocumentStatus.SkippedDuplicate => $"{title} is already in the library.",
+                _ => "Import finished."
+            };
         }
     }
 }
@@ -4683,6 +5322,77 @@ namespace MiniZotero.Services
                 .Replace("\r", "\n")
                 .Replace("\n", "\n> ")
                 .Trim();
+        }
+    }
+}
+``
+
+## MiniZotero/Services/NoteService.cs
+
+``csharp
+using System;
+using System.Collections.Generic;
+using MiniZotero.Models;
+using MiniZotero.Repositories;
+
+namespace MiniZotero.Services
+{
+    public sealed class NoteService
+    {
+        private readonly NoteRepository _noteRepository;
+        private readonly MarkdownExportService _markdownExportService;
+
+        public NoteService(
+            NoteRepository noteRepository,
+            MarkdownExportService markdownExportService)
+        {
+            _noteRepository = noteRepository;
+            _markdownExportService = markdownExportService;
+        }
+
+        public string LoadNote(string documentId)
+        {
+            return _noteRepository.LoadNote(documentId);
+        }
+
+        public OperationResult SaveNote(string documentId, string text)
+        {
+            try
+            {
+                _noteRepository.SaveNote(documentId, text);
+                return OperationResult.Success("Note saved.");
+            }
+            catch (Exception)
+            {
+                return OperationResult.Failure("Could not save the note.");
+            }
+        }
+
+        public OperationResult ExportDocumentNotes(
+            DocumentItem document,
+            string noteText,
+            IEnumerable<HighlightItem> highlights,
+            string outputPath)
+        {
+            if (string.IsNullOrWhiteSpace(outputPath))
+            {
+                return OperationResult.Failure("Choose a file path before exporting.");
+            }
+
+            try
+            {
+                _markdownExportService.ExportDocumentNotes(
+                    document,
+                    noteText,
+                    highlights,
+                    outputPath);
+
+                return OperationResult.Success("Notes exported.");
+            }
+            catch (Exception)
+            {
+                return OperationResult.Failure("Could not export notes.");
+            }
         }
     }
 }
@@ -5039,6 +5749,72 @@ namespace MiniZotero.Services
 }
 ``
 
+## MiniZotero/Services/TagService.cs
+
+``csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using MiniZotero.Models;
+
+namespace MiniZotero.Services
+{
+    public sealed class TagService
+    {
+        public bool AddTag(DocumentItem document, string tag)
+        {
+            var normalizedTag = NormalizeTag(tag);
+
+            if (string.IsNullOrWhiteSpace(normalizedTag))
+            {
+                return false;
+            }
+
+            document.Tags ??= [];
+
+            var exists = document.Tags.Any(existingTag =>
+                string.Equals(existingTag, normalizedTag, StringComparison.OrdinalIgnoreCase));
+
+            if (exists)
+            {
+                return false;
+            }
+
+            document.Tags.Add(normalizedTag);
+            return true;
+        }
+
+        public bool RemoveTag(DocumentItem document, string tag)
+        {
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                return false;
+            }
+
+            return document.Tags.RemoveAll(existingTag =>
+                string.Equals(existingTag, tag.Trim(), StringComparison.OrdinalIgnoreCase)) > 0;
+        }
+
+        public IReadOnlyList<(string Name, int Count)> GetTagCounts(IEnumerable<DocumentItem> documents)
+        {
+            return documents
+                .Where(document => !document.IsDeleted)
+                .SelectMany(document => document.Tags)
+                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                .GroupBy(tag => tag.Trim(), StringComparer.OrdinalIgnoreCase)
+                .OrderBy(group => group.Key)
+                .Select(group => (group.Key, group.Count()))
+                .ToList();
+        }
+
+        private static string NormalizeTag(string tag)
+        {
+            return tag.Trim();
+        }
+    }
+}
+``
+
 ## MiniZotero/Services/WatchFolderService.cs
 
 ``csharp
@@ -5213,11 +5989,16 @@ namespace MiniZotero
 ``csharp
 using MiniZotero.Repositories;
 using MiniZotero.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace MiniZotero.ViewModels
 {
     public partial class MainWindowViewModel : ViewModelBase
     {
+        [ObservableProperty]
+        private string _statusMessage = "Ready";
+
         public MainWindowViewModel()
         {
             var storageService = new AppStorageService();
@@ -5229,18 +6010,22 @@ namespace MiniZotero.ViewModels
             var watchFolderService = new WatchFolderService();
             var markdownExportService = new MarkdownExportService();
             var storageUsageService = new StorageUsageService();
+            var noteService = new NoteService(noteRepository, markdownExportService);
+            var highlightService = new HighlightService(highlightRepository);
+            var libraryService = new LibraryService(documentRepository, noteService);
+            var tagService = new TagService();
 
             Sidebar = new SidebarViewModel(
-                documentRepository,
+                libraryService,
+                tagService,
                 settingsRepository,
                 watchFolderService,
                 storageUsageService);
             Notes = new NotePreviewPanelViewModel(
-                noteRepository,
-                highlightRepository,
-                markdownExportService);
+                noteService,
+                highlightService);
             Workspace = new TabWorkspaceViewModel(document =>
-                documentRepository.SaveDocuments(Sidebar.Documents));
+                libraryService.SaveDocuments(Sidebar.Documents));
 
             Workspace.PdfViewer.HighlightCreated += (text, pageNumber, rects) =>
             {
@@ -5257,17 +6042,31 @@ namespace MiniZotero.ViewModels
                 Workspace.PdfViewer.NavigateToHighlight(highlight);
             };
 
+            Notes.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(NotePreviewPanelViewModel.StatusMessage))
+                {
+                    StatusMessage = Notes.StatusMessage;
+                }
+            };
+
             Workspace.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(TabWorkspaceViewModel.ActiveDocument))
                 {
                     OnPropertyChanged(nameof(OpenDocumentCount));
                     OnPropertyChanged(nameof(DocumentsOpenText));
+                    CloseActiveDocumentCommand.NotifyCanExecuteChanged();
                 }
             };
 
             Sidebar.PropertyChanged += (_, e) =>
             {
+                if (e.PropertyName == nameof(SidebarViewModel.StatusMessage))
+                {
+                    StatusMessage = Sidebar.StatusMessage;
+                }
+
                 if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
                     Sidebar.SelectedDocument is { } document)
                 {
@@ -5292,6 +6091,29 @@ namespace MiniZotero.ViewModels
                 : $"{OpenDocumentCount} documents open";
 
         public string LibraryStatusText => "Local library";
+
+        [RelayCommand(CanExecute = nameof(CanCloseActiveDocument))]
+        private void CloseActiveDocument()
+        {
+            if (Workspace.ActiveDocument is null)
+            {
+                return;
+            }
+
+            if (Sidebar.SelectedDocument?.Id == Workspace.ActiveDocument.Id)
+            {
+                Sidebar.SelectedDocument = null;
+            }
+
+            Workspace.ClearActiveDocument();
+            Notes.ClearActiveDocument();
+            StatusMessage = "Closed document.";
+        }
+
+        private bool CanCloseActiveDocument()
+        {
+            return Workspace.ActiveDocument is not null;
+        }
     }
 }
 ``
@@ -5302,30 +6124,29 @@ namespace MiniZotero.ViewModels
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MiniZotero.Models;
-using MiniZotero.Repositories;
 using MiniZotero.Services;
 
 namespace MiniZotero.ViewModels
 {
     public partial class NotePreviewPanelViewModel : ViewModelBase
     {
-        private readonly NoteRepository _noteRepository;
-        private readonly HighlightRepository _highlightRepository;
-        private readonly MarkdownExportService _markdownExportService;
+        private readonly NoteService _noteService;
+        private readonly HighlightService _highlightService;
+        private CancellationTokenSource? _saveNoteDebounce;
         private bool _isLoadingNote;
 
         public NotePreviewPanelViewModel(
-            NoteRepository noteRepository,
-            HighlightRepository highlightRepository,
-            MarkdownExportService markdownExportService)
+            NoteService noteService,
+            HighlightService highlightService)
         {
-            _noteRepository = noteRepository;
-            _highlightRepository = highlightRepository;
-            _markdownExportService = markdownExportService;
+            _noteService = noteService;
+            _highlightService = highlightService;
         }
 
         [ObservableProperty]
@@ -5337,6 +6158,9 @@ namespace MiniZotero.ViewModels
 
         [ObservableProperty]
         private string _noteText = string.Empty;
+
+        [ObservableProperty]
+        private string _statusMessage = "Ready";
 
         public ObservableCollection<HighlightItem> Highlights { get; } = [];
 
@@ -5354,12 +6178,14 @@ namespace MiniZotero.ViewModels
 
         public void OpenDocument(DocumentItem document)
         {
+            SaveActiveNoteImmediately();
+
             ActiveDocument = document;
             _isLoadingNote = true;
 
             try
             {
-                NoteText = _noteRepository.LoadNote(document.Id);
+                NoteText = _noteService.LoadNote(document.Id);
             }
             finally
             {
@@ -5367,6 +6193,19 @@ namespace MiniZotero.ViewModels
             }
 
             LoadHighlights(document.Id);
+        }
+
+        public void ClearActiveDocument()
+        {
+            ActiveDocument = null;
+            NoteText = string.Empty;
+            Highlights.Clear();
+            StatusMessage = "Ready";
+            OnPropertyChanged(nameof(HasDocument));
+            OnPropertyChanged(nameof(IsEmptyViewVisible));
+            OnPropertyChanged(nameof(HasHighlights));
+            OnPropertyChanged(nameof(IsHighlightEmptyViewVisible));
+            HighlightsChanged?.Invoke();
         }
 
         public void AddHighlightFromViewer(
@@ -5380,38 +6219,42 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            var highlight = new HighlightItem
-            {
-                DocumentId = ActiveDocument.Id,
-                PageNumber = pageNumber < 1 ? 1 : pageNumber,
-                Text = text.Trim(),
-                Color = "yellow",
-                Rects = rects.ToList()
-            };
+            var result = _highlightService.AddHighlight(
+                ActiveDocument,
+                text,
+                pageNumber,
+                rects);
 
-            _highlightRepository.AddHighlight(highlight);
+            StatusMessage = result.Message;
             LoadHighlights(ActiveDocument.Id);
         }
 
-        public void ExportActiveDocumentToMarkdown(string outputPath)
+        public OperationResult ExportActiveDocumentToMarkdown(string outputPath)
         {
             if (ActiveDocument is null)
             {
-                return;
+                var failure = OperationResult.Failure("Select a document before exporting.");
+                StatusMessage = failure.Message;
+                return failure;
             }
 
-            _markdownExportService.ExportDocumentNotes(
+            SaveActiveNoteImmediately();
+
+            var result = _noteService.ExportDocumentNotes(
                 ActiveDocument,
                 NoteText,
                 Highlights,
                 outputPath);
+
+            StatusMessage = result.Message;
+            return result;
         }
 
         private void LoadHighlights(string documentId)
         {
             Highlights.Clear();
 
-            foreach (var highlight in _highlightRepository.LoadHighlights(documentId))
+            foreach (var highlight in _highlightService.LoadHighlights(documentId))
             {
                 Highlights.Add(highlight);
             }
@@ -5440,7 +6283,8 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            _highlightRepository.DeleteHighlight(ActiveDocument.Id, highlight.Id);
+            var result = _highlightService.DeleteHighlight(ActiveDocument.Id, highlight.Id);
+            StatusMessage = result.Message;
             LoadHighlights(ActiveDocument.Id);
         }
 
@@ -5451,7 +6295,48 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            _noteRepository.SaveNote(document.Id, value);
+            ScheduleNoteSave(document.Id, value);
+        }
+
+        private void ScheduleNoteSave(string documentId, string value)
+        {
+            _saveNoteDebounce?.Cancel();
+            _saveNoteDebounce = new CancellationTokenSource();
+
+            var token = _saveNoteDebounce.Token;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(500, token);
+
+                    if (!token.IsCancellationRequested)
+                    {
+                        var result = _noteService.SaveNote(documentId, value);
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            StatusMessage = result.Message;
+                        });
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                }
+            }, token);
+        }
+
+        private void SaveActiveNoteImmediately()
+        {
+            _saveNoteDebounce?.Cancel();
+
+            if (ActiveDocument is null)
+            {
+                return;
+            }
+
+            var result = _noteService.SaveNote(ActiveDocument.Id, NoteText);
+            StatusMessage = result.Message;
         }
     }
 }
@@ -5465,6 +6350,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MiniZotero.Models;
 using MiniZotero.Services;
 
@@ -5587,19 +6473,51 @@ namespace MiniZotero.ViewModels
             StatusText = $"Page {CurrentPage}";
         }
 
-        public void SetHandTool()
+        [RelayCommand]
+        private void SetHandTool()
         {
             ToolMode = "hand";
+            ScriptRequested?.Invoke("window.miniZoteroPdf?.setToolMode?.('hand');");
         }
 
-        public void SetSelectTool()
+        [RelayCommand]
+        private void SetSelectTool()
         {
             ToolMode = "select";
+            ScriptRequested?.Invoke("window.miniZoteroPdf?.setToolMode?.('select');");
         }
 
-        public void SetHighlightTool()
+        [RelayCommand]
+        private void SetHighlightTool()
         {
             ToolMode = "highlight";
+            ScriptRequested?.Invoke("window.miniZoteroPdf?.setToolMode?.('highlight');");
+        }
+
+        [RelayCommand]
+        private void GoToPreviousPage()
+        {
+            var targetPage = Math.Max(1, CurrentPage - 1);
+            ScriptRequested?.Invoke($"window.miniZoteroPdf?.goToPage?.({targetPage});");
+        }
+
+        [RelayCommand]
+        private void GoToNextPage()
+        {
+            var targetPage = Math.Max(1, CurrentPage + 1);
+            ScriptRequested?.Invoke($"window.miniZoteroPdf?.goToPage?.({targetPage});");
+        }
+
+        [RelayCommand]
+        private void ZoomIn()
+        {
+            ScriptRequested?.Invoke("window.miniZoteroPdf?.zoomIn?.();");
+        }
+
+        [RelayCommand]
+        private void ZoomOut()
+        {
+            ScriptRequested?.Invoke("window.miniZoteroPdf?.zoomOut?.();");
         }
 
         public void AddHighlightFromViewer(
@@ -5619,6 +6537,20 @@ namespace MiniZotero.ViewModels
         {
             _currentHighlights = highlights;
             SendHighlightsToViewer();
+        }
+
+        public void ClearDocument()
+        {
+            _activeDocument = null;
+            DocumentPath = string.Empty;
+            ViewerSource = null;
+            CurrentPage = 1;
+            ZoomPercent = 120;
+            StatusText = "Ready";
+            ToolMode = "select";
+            EmptyTitle = "Select a document to view";
+            EmptyMessage = "Import a PDF file from the sidebar.";
+            HasDocumentLoaded = false;
         }
 
         public void SendHighlightsToViewer()
@@ -5787,7 +6719,8 @@ namespace MiniZotero.ViewModels
 
     public partial class SidebarViewModel : ViewModelBase
     {
-        private readonly DocumentRepository _documentRepository;
+        private readonly LibraryService _libraryService;
+        private readonly TagService _tagService;
         private readonly AppSettingsRepository _settingsRepository;
         private readonly WatchFolderService _watchFolderService;
         private readonly StorageUsageService _storageUsageService;
@@ -5800,7 +6733,8 @@ namespace MiniZotero.ViewModels
 
         public SidebarViewModel()
             : this(
-                new DocumentRepository(new AppStorageService(), new AutoTagService()),
+                CreateDefaultLibraryService(),
+                new TagService(),
                 new AppSettingsRepository(new AppStorageService()),
                 new WatchFolderService(),
                 new StorageUsageService())
@@ -5808,12 +6742,14 @@ namespace MiniZotero.ViewModels
         }
 
         public SidebarViewModel(
-            DocumentRepository documentRepository,
+            LibraryService libraryService,
+            TagService tagService,
             AppSettingsRepository settingsRepository,
             WatchFolderService watchFolderService,
             StorageUsageService storageUsageService)
         {
-            _documentRepository = documentRepository;
+            _libraryService = libraryService;
+            _tagService = tagService;
             _settingsRepository = settingsRepository;
             _watchFolderService = watchFolderService;
             _storageUsageService = storageUsageService;
@@ -5845,13 +6781,23 @@ namespace MiniZotero.ViewModels
                 _watchFolderService.Start(WatchFolderPath);
             }
 
-            foreach (var document in _documentRepository.LoadDocuments())
+            foreach (var document in _libraryService.LoadDocuments())
             {
                 Documents.Add(document);
             }
 
             RebuildTags();
             ApplyDocumentFilter();
+        }
+
+        private static LibraryService CreateDefaultLibraryService()
+        {
+            var storageService = new AppStorageService();
+            var documentRepository = new DocumentRepository(storageService, new AutoTagService());
+            var noteRepository = new NoteRepository(storageService);
+            var noteService = new NoteService(noteRepository, new MarkdownExportService());
+
+            return new LibraryService(documentRepository, noteService);
         }
 
         [ObservableProperty]
@@ -5869,6 +6815,9 @@ namespace MiniZotero.ViewModels
 
         [ObservableProperty]
         private string _newTagText = string.Empty;
+
+        [ObservableProperty]
+        private string _statusMessage = "Ready";
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsWatchFolderConfigured))]
@@ -5942,9 +6891,21 @@ namespace MiniZotero.ViewModels
         public bool IsWatchFolderConfigured => !string.IsNullOrWhiteSpace(WatchFolderPath);
 
         public string WatchFolderStatusText =>
-            IsWatchFolderConfigured
-                ? $"Đang theo dõi: {Path.GetFileName(WatchFolderPath)}"
-                : "Not configured";
+            !IsWatchFolderConfigured
+                ? "Not configured"
+                : Directory.Exists(WatchFolderPath)
+                    ? $"Watching: {Path.GetFileName(WatchFolderPath)}"
+                    : "Folder missing";
+
+        public bool IsWatchFolderHealthy =>
+            IsWatchFolderConfigured && Directory.Exists(WatchFolderPath);
+
+        public string WatchFolderStateText =>
+            !IsWatchFolderConfigured
+                ? "Not configured"
+                : IsWatchFolderHealthy
+                    ? "Watching"
+                    : "Folder missing";
 
         public string StorageUsageText
         {
@@ -5957,31 +6918,67 @@ namespace MiniZotero.ViewModels
 
         public void AddDocument(string filePath)
         {
-            if (string.IsNullOrWhiteSpace(filePath))
+            var result = _libraryService.ImportDocument(filePath, Documents);
+            StatusMessage = result.Message;
+
+            if (!result.Succeeded || result.Value is null)
             {
                 return;
             }
 
-            var document = _documentRepository.ImportDocument(filePath, Documents);
-            if (!Documents.Any(existingDocument => existingDocument.Id == document.Id))
+            RebuildTags();
+            ApplyDocumentFilter();
+            ApplySearchFilter();
+
+            SelectedDocument = result.Value.Document;
+        }
+
+        public void AddDocuments(IEnumerable<string> filePaths)
+        {
+            var imported = 0;
+            var skipped = 0;
+            var failed = 0;
+            DocumentItem? lastDocument = null;
+
+            foreach (var filePath in filePaths)
             {
-                Documents.Add(document);
-            }
-            else if (document.IsDeleted)
-            {
-                document.IsDeleted = false;
-                document.DeletedAt = null;
+                var result = _libraryService.ImportDocument(filePath, Documents);
+
+                if (!result.Succeeded || result.Value is null)
+                {
+                    failed++;
+                    continue;
+                }
+
+                lastDocument = result.Value.Document;
+
+                if (result.Value.Status == ImportDocumentStatus.SkippedDuplicate)
+                {
+                    skipped++;
+                }
+                else
+                {
+                    imported++;
+                }
             }
 
-            PersistDocumentsAndRefresh();
+            RebuildTags();
+            ApplyDocumentFilter();
+            ApplySearchFilter();
 
-            SelectedDocument = document;
+            if (lastDocument is not null)
+            {
+                SelectedDocument = lastDocument;
+            }
+
+            StatusMessage = $"Import finished: {imported} added, {skipped} skipped, {failed} failed.";
         }
 
         public void SetWatchFolder(string folderPath)
         {
             if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
             {
+                StatusMessage = "Choose an existing folder.";
                 return;
             }
 
@@ -5993,6 +6990,13 @@ namespace MiniZotero.ViewModels
             });
 
             _watchFolderService.Start(folderPath);
+            StatusMessage = $"Watching {Path.GetFileName(folderPath)}.";
+        }
+
+        partial void OnWatchFolderPathChanged(string? value)
+        {
+            OnPropertyChanged(nameof(IsWatchFolderHealthy));
+            OnPropertyChanged(nameof(WatchFolderStateText));
         }
 
         partial void OnSearchTextChanged(string value)
@@ -6050,8 +7054,7 @@ namespace MiniZotero.ViewModels
                     return;
                 }
 
-                value.LastOpenedAt = DateTimeOffset.Now;
-                _documentRepository.SaveDocuments(Documents);
+                _libraryService.MarkDocumentOpened(value, Documents);
 
                 if (ShouldRefreshDocumentListAfterOpen())
                 {
@@ -6108,9 +7111,8 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            document.IsStarred = !document.IsStarred;
-
-            PersistDocumentsAndRefresh(rebuildTags: false);
+            _libraryService.ToggleStar(document, Documents);
+            RefreshAfterDocumentChange(rebuildTags: false);
         }
 
         [RelayCommand]
@@ -6139,15 +7141,7 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            SelectedDocument.Tags ??= [];
-
-            var exists = SelectedDocument.Tags.Any(existingTag =>
-                string.Equals(existingTag, tag, StringComparison.OrdinalIgnoreCase));
-
-            if (!exists)
-            {
-                SelectedDocument.Tags.Add(tag);
-            }
+            _tagService.AddTag(SelectedDocument, tag);
 
             NewTagText = string.Empty;
 
@@ -6162,8 +7156,7 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            SelectedDocument.Tags.RemoveAll(existingTag =>
-                string.Equals(existingTag, tag, StringComparison.OrdinalIgnoreCase));
+            _tagService.RemoveTag(SelectedDocument, tag);
 
             PersistDocumentsAndRefresh();
         }
@@ -6184,11 +7177,10 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            SelectedDocument.IsDeleted = true;
-            SelectedDocument.DeletedAt = DateTimeOffset.Now;
+            _libraryService.MoveToTrash(SelectedDocument, Documents);
 
             SelectedDocument = null;
-            PersistDocumentsAndRefresh();
+            RefreshAfterDocumentChange();
         }
 
         [RelayCommand]
@@ -6199,11 +7191,10 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            SelectedDocument.IsDeleted = false;
-            SelectedDocument.DeletedAt = null;
+            _libraryService.Restore(SelectedDocument, Documents);
 
             SelectedDocument = null;
-            PersistDocumentsAndRefresh();
+            RefreshAfterDocumentChange();
         }
 
         [RelayCommand]
@@ -6217,16 +7208,20 @@ namespace MiniZotero.ViewModels
             var document = SelectedDocument;
             SelectedDocument = null;
 
-            _documentRepository.DeleteStoredPdfFile(document);
-            Documents.Remove(document);
+            _libraryService.DeleteForever(document, Documents);
 
-            PersistDocumentsAndRefresh();
+            RefreshAfterDocumentChange();
         }
 
         private void PersistDocumentsAndRefresh(bool rebuildTags = true)
         {
-            _documentRepository.SaveDocuments(Documents);
+            _libraryService.SaveDocuments(Documents);
 
+            RefreshAfterDocumentChange(rebuildTags);
+        }
+
+        private void RefreshAfterDocumentChange(bool rebuildTags = true)
+        {
             if (rebuildTags)
             {
                 RebuildTags();
@@ -6247,7 +7242,11 @@ namespace MiniZotero.ViewModels
             FilteredDocuments.Clear();
             DocumentExplorerItems.Clear();
 
-            var documents = ApplySmartCollectionFilter(GetNavigationDocuments());
+            var documents = _libraryService.ApplySmartCollectionFilter(
+                _libraryService.GetNavigationDocuments(
+                    Documents,
+                    SelectedNavigationItem?.Name),
+                SelectedSmartCollection?.Kind);
 
             if (SelectedTag is not null)
             {
@@ -6284,16 +7283,9 @@ namespace MiniZotero.ViewModels
             {
                 Tags.Clear();
 
-                var tagGroups = Documents
-                    .Where(document => !document.IsDeleted)
-                    .SelectMany(document => document.Tags)
-                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                    .GroupBy(tag => tag.Trim(), StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(group => group.Key);
-
-                foreach (var group in tagGroups)
+                foreach (var tag in _tagService.GetTagCounts(Documents))
                 {
-                    Tags.Add(new TagItem(group.Key, group.Count().ToString()));
+                    Tags.Add(new TagItem(tag.Name, tag.Count.ToString()));
                 }
 
                 SelectedTag = !string.IsNullOrWhiteSpace(selectedTagName)
@@ -6372,8 +7364,12 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            var documents = ApplySmartCollectionFilter(GetNavigationDocuments())
-                .Where(document => MatchesSearch(document, query))
+            var documents = _libraryService.ApplySmartCollectionFilter(
+                    _libraryService.GetNavigationDocuments(
+                        Documents,
+                        SelectedNavigationItem?.Name),
+                    SelectedSmartCollection?.Kind)
+                .Where(document => _libraryService.MatchesSearch(document, query))
                 .OrderBy(document => document.Title);
 
             foreach (var document in documents)
@@ -6382,63 +7378,6 @@ namespace MiniZotero.ViewModels
             }
 
             NotifyDocumentStateChanged();
-        }
-
-        private static bool MatchesSearch(DocumentItem document, string keyword)
-        {
-            return Contains(document.Title, keyword) ||
-                   Contains(document.FilePath, keyword) ||
-                   Contains(document.OriginalFilePath, keyword) ||
-                   document.Tags.Any(tag => Contains(tag, keyword));
-        }
-
-        private static bool Contains(string? value, string keyword)
-        {
-            return !string.IsNullOrWhiteSpace(value) &&
-                   value.Contains(keyword, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private IEnumerable<DocumentItem> GetNavigationDocuments()
-        {
-            var documents = Documents.AsEnumerable();
-
-            return SelectedNavigationItem?.Name switch
-            {
-                "Recent" => documents
-                    .Where(document => !document.IsDeleted && document.LastOpenedAt is not null)
-                    .OrderByDescending(document => document.LastOpenedAt),
-
-                "Starred" => documents
-                    .Where(document => !document.IsDeleted && document.IsStarred)
-                    .OrderBy(document => document.Title),
-
-                "Trash" => documents
-                    .Where(document => document.IsDeleted)
-                    .OrderByDescending(document => document.DeletedAt),
-
-                _ => documents
-                    .Where(document => !document.IsDeleted)
-                    .OrderBy(document => document.Title)
-            };
-        }
-
-        private IEnumerable<DocumentItem> ApplySmartCollectionFilter(IEnumerable<DocumentItem> documents)
-        {
-            return SelectedSmartCollection?.Kind switch
-            {
-                "reading" => documents.Where(document => document.LastReadPage > 1),
-
-                "new" => documents.Where(document =>
-                    document.AddedAt >= DateTimeOffset.Now.AddDays(-7)),
-
-                "recent" => documents
-                    .Where(document => document.LastOpenedAt is not null)
-                    .OrderByDescending(document => document.LastOpenedAt),
-
-                "unread" => documents.Where(document => document.LastOpenedAt is null),
-
-                _ => documents
-            };
         }
 
         private void NotifyDocumentStateChanged()
@@ -6529,6 +7468,12 @@ namespace MiniZotero.ViewModels
         {
             ActiveDocument = document;
             PdfViewer.LoadDocument(document);
+        }
+
+        public void ClearActiveDocument()
+        {
+            ActiveDocument = null;
+            PdfViewer.ClearDocument();
         }
     }
 }
@@ -6662,7 +7607,8 @@ namespace MiniZotero.ViewModels
                                     Height="24"
                                     Padding="0"
                                     HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center"/>
+                                    VerticalContentAlignment="Center"
+                                    Command="{Binding CloseActiveDocumentCommand}"/>
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -6692,9 +7638,15 @@ namespace MiniZotero.ViewModels
                         </Grid>
                     </Border>
 
-                    <Button Classes="IconButton" Content="&#xE72D;"/>
-                    <Button Classes="IconButton" Content="&#xE712;"/>
-                    <Button Classes="IconButton" Content="&#xE713;"/>
+                    <Button Classes="IconButton" Content="&#xE72D;"
+                            IsEnabled="False"
+                            ToolTip.Tip="Coming soon"/>
+                    <Button Classes="IconButton" Content="&#xE712;"
+                            IsEnabled="False"
+                            ToolTip.Tip="Coming soon"/>
+                    <Button Classes="IconButton" Content="&#xE713;"
+                            IsEnabled="False"
+                            ToolTip.Tip="Coming soon"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -6778,7 +7730,7 @@ namespace MiniZotero.ViewModels
                 BorderBrush="#202B38"
                 BorderThickness="0,1,0,0">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="16,0">
-                <TextBlock Text="Ready"
+                <TextBlock Text="{Binding StatusMessage}"
                            Classes="Muted"
                            FontSize="11"
                            VerticalAlignment="Center"/>
@@ -6850,10 +7802,9 @@ namespace MiniZotero.Views
                 ]
             });
 
-            foreach (var file in pdfFiles.Where(file => file.Path.IsFile))
-            {
-                viewModel.Sidebar.AddDocument(Uri.UnescapeDataString(file.Path.LocalPath));
-            }
+            viewModel.Sidebar.AddDocuments(pdfFiles
+                .Where(file => file.Path.IsFile)
+                .Select(file => Uri.UnescapeDataString(file.Path.LocalPath)));
         }
     }
 }
@@ -6952,14 +7903,26 @@ namespace MiniZotero.Views
                         <Border Classes="PanelZoomChip">
                             <TextBlock Text="100%" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Button Classes="PanelIconButton" Content="&#xE738;"/>
-                        <Button Classes="PanelIconButton" Content="&#xE710;"/>
-                        <Button Classes="PanelIconButton" Content="&#xE8A7;"/>
+                        <Button Classes="PanelIconButton"
+                                Content="&#xE738;"
+                                IsEnabled="False"
+                                ToolTip.Tip="Coming soon"/>
+                        <Button Classes="PanelIconButton"
+                                Content="&#xE710;"
+                                IsEnabled="False"
+                                ToolTip.Tip="Coming soon"/>
+                        <Button Classes="PanelIconButton"
+                                Content="&#xE8A7;"
+                                IsEnabled="False"
+                                ToolTip.Tip="Coming soon"/>
                         <Button Classes="ExportButton"
                                 Content="Export"
                                 Click="OnExportMarkdownClicked"
                                 IsVisible="{Binding HasDocument}"/>
-                        <Button Classes="PanelIconButton" Content="&#xE713;"/>
+                        <Button Classes="PanelIconButton"
+                                Content="&#xE713;"
+                                IsEnabled="False"
+                                ToolTip.Tip="Coming soon"/>
                     </StackPanel>
                 </Grid>
 
@@ -6968,17 +7931,17 @@ namespace MiniZotero.Views
                         BorderThickness="0,1,0,1"
                         Padding="12,0">
                     <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                        <Button Classes="FormatButton" Content="H"/>
-                        <Button Classes="FormatButton" Content="B" FontWeight="Bold"/>
-                        <Button Classes="FormatButton" Content="I" FontStyle="Italic"/>
-                        <Button Classes="FormatButton" Content="&#xE943;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE9D5;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE7C3;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE8A5;" FontFamily="Segoe MDL2 Assets"/>
-                        <Button Classes="FormatButton" Content="&#xE80A;" FontFamily="Segoe MDL2 Assets"/>
+                        <Button Classes="FormatButton" Content="H" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="B" FontWeight="Bold" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="I" FontStyle="Italic" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE943;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE8FD;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE9D5;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE7C3;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE8A5;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
+                        <Button Classes="FormatButton" Content="&#xE80A;" FontFamily="Segoe MDL2 Assets" IsEnabled="False"/>
                     </StackPanel>
                 </Border>
 
@@ -7049,9 +8012,18 @@ namespace MiniZotero.Views
                         <Border Classes="PanelZoomChip">
                             <TextBlock Text="100%" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Button Classes="PanelIconButton" Content="&#xE738;"/>
-                        <Button Classes="PanelIconButton" Content="&#xE710;"/>
-                        <Button Classes="PanelIconButton" Content="&#xE713;"/>
+                        <Button Classes="PanelIconButton"
+                                Content="&#xE738;"
+                                IsEnabled="False"
+                                ToolTip.Tip="Coming soon"/>
+                        <Button Classes="PanelIconButton"
+                                Content="&#xE710;"
+                                IsEnabled="False"
+                                ToolTip.Tip="Coming soon"/>
+                        <Button Classes="PanelIconButton"
+                                Content="&#xE713;"
+                                IsEnabled="False"
+                                ToolTip.Tip="Coming soon"/>
                     </StackPanel>
                 </Grid>
 
@@ -8000,10 +8972,9 @@ namespace MiniZotero.Views
                 ]
             });
 
-            foreach (var file in pdfFiles.Where(file => file.Path.IsFile))
-            {
-                viewModel.AddDocument(Uri.UnescapeDataString(file.Path.LocalPath));
-            }
+            viewModel.AddDocuments(pdfFiles
+                .Where(file => file.Path.IsFile)
+                .Select(file => Uri.UnescapeDataString(file.Path.LocalPath)));
         }
 
         private async void OnConfigureWatchFolderClicked(object? sender, RoutedEventArgs e)
@@ -8126,7 +9097,9 @@ namespace MiniZotero.Views
                 BorderThickness="0,0,1,1">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="7,0,10,0">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Button Classes="ToolButton" Content="&#xE72B;"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE72B;"
+                            Command="{Binding PdfViewer.GoToPreviousPageCommand}"/>
                     <TextBlock Text="{Binding PdfViewer.CurrentPage}"
                                Foreground="#172033"
                                FontWeight="SemiBold"
@@ -8142,12 +9115,18 @@ namespace MiniZotero.Views
                                Foreground="#94A3B8"
                                FontSize="12"
                                VerticalAlignment="Center"/>
-                    <Button Classes="ToolButton" Content="&#xE72A;"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE72A;"
+                            Command="{Binding PdfViewer.GoToNextPageCommand}"/>
 
                     <Border Width="1" Height="20" Background="#D5DDE7" Margin="4,0"/>
 
-                    <Button Classes="ToolButton" Content="&#xE710;"/>
-                    <Button Classes="ToolButton" Content="&#xE738;"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE710;"
+                            Command="{Binding PdfViewer.ZoomOutCommand}"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE738;"
+                            Command="{Binding PdfViewer.ZoomInCommand}"/>
                     <Border Classes="ZoomChip">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <TextBlock Text="{Binding PdfViewer.ZoomPercent, StringFormat='{}{0}%'}"
@@ -8162,15 +9141,30 @@ namespace MiniZotero.Views
 
                     <Border Width="1" Height="20" Background="#D5DDE7" Margin="4,0"/>
 
-                    <Button Classes="ToolButton" Content="&#xE740;"/>
-                    <Button Classes="ToolButton" Content="&#xE8A7;"/>
-                    <Button Classes="ToolButton" Content="&#xE734;"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE740;"
+                            IsEnabled="False"
+                            ToolTip.Tip="Coming soon"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE8A7;"
+                            IsEnabled="False"
+                            ToolTip.Tip="Coming soon"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE734;"
+                            IsEnabled="False"
+                            ToolTip.Tip="Coming soon"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Button Classes="ToolButton" Content="&#xE8A7;"/>
-                    <Button Classes="ToolButton" Content="&#xE8A9;"/>
-                    <Button Classes="ToolButton" Content="&#xE713;"/>
+                    <Button Classes="ToolButton" Content="&#xE8A7;"
+                            IsEnabled="False"
+                            ToolTip.Tip="Coming soon"/>
+                    <Button Classes="ToolButton" Content="&#xE8A9;"
+                            IsEnabled="False"
+                            ToolTip.Tip="Coming soon"/>
+                    <Button Classes="ToolButton" Content="&#xE713;"
+                            IsEnabled="False"
+                            ToolTip.Tip="Coming soon"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -8181,7 +9175,9 @@ namespace MiniZotero.Views
                 BorderBrush="#D5DDE7"
                 BorderThickness="0,0,1,0">
             <StackPanel Margin="4,10" Spacing="8">
-                <Button Classes="RailButton">
+                <Button Classes="RailButton"
+                        IsEnabled="False"
+                        ToolTip.Tip="Coming soon">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE8A5;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -8193,7 +9189,7 @@ namespace MiniZotero.Views
                 </Button>
                 <ToggleButton Classes="RailButton"
                               IsChecked="{Binding PdfViewer.IsHandToolActive, Mode=OneWay}"
-                              Click="OnHandToolClicked">
+                              Command="{Binding PdfViewer.SetHandToolCommand}">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE7C9;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -8205,7 +9201,7 @@ namespace MiniZotero.Views
                 </ToggleButton>
                 <ToggleButton Classes="RailButton"
                               IsChecked="{Binding PdfViewer.IsSelectToolActive, Mode=OneWay}"
-                              Click="OnSelectToolClicked">
+                              Command="{Binding PdfViewer.SetSelectToolCommand}">
                     <Canvas Width="20" Height="24">
                         <TextBlock Text="T"
                                    FontFamily="Segoe UI"
@@ -8220,7 +9216,7 @@ namespace MiniZotero.Views
                 </ToggleButton>
                 <ToggleButton Classes="RailButton"
                               IsChecked="{Binding PdfViewer.IsHighlightToolActive, Mode=OneWay}"
-                              Click="OnHighlightToolClicked">
+                              Command="{Binding PdfViewer.SetHighlightToolCommand}">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE70F;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -8275,53 +9271,6 @@ namespace MiniZotero.Views
         public TabWorkspaceView()
         {
             InitializeComponent();
-        }
-
-        private void OnHandToolClicked(object? sender, RoutedEventArgs e)
-        {
-            if (sender is ToggleButton button)
-            {
-                button.IsChecked = true;
-            }
-
-            if (DataContext is TabWorkspaceViewModel viewModel)
-            {
-                viewModel.PdfViewer.SetHandTool();
-            }
-        }
-
-        private void OnSelectToolClicked(object? sender, RoutedEventArgs e)
-        {
-            if (sender is ToggleButton button)
-            {
-                button.IsChecked = true;
-            }
-
-            if (DataContext is TabWorkspaceViewModel viewModel)
-            {
-                viewModel.PdfViewer.SetSelectTool();
-            }
-        }
-
-        private void OnHighlightToolClicked(object? sender, RoutedEventArgs e)
-        {
-            if (DataContext is not TabWorkspaceViewModel viewModel)
-            {
-                return;
-            }
-
-            if (sender is ToggleButton { IsChecked: false })
-            {
-                viewModel.PdfViewer.SetSelectTool();
-                return;
-            }
-
-            if (sender is ToggleButton button)
-            {
-                button.IsChecked = true;
-            }
-
-            viewModel.PdfViewer.SetHighlightTool();
         }
     }
 }

@@ -136,7 +136,8 @@ namespace MiniZotero.ViewModels
 
     public partial class SidebarViewModel : ViewModelBase
     {
-        private readonly DocumentRepository _documentRepository;
+        private readonly LibraryService _libraryService;
+        private readonly TagService _tagService;
         private readonly AppSettingsRepository _settingsRepository;
         private readonly WatchFolderService _watchFolderService;
         private readonly StorageUsageService _storageUsageService;
@@ -149,7 +150,8 @@ namespace MiniZotero.ViewModels
 
         public SidebarViewModel()
             : this(
-                new DocumentRepository(new AppStorageService(), new AutoTagService()),
+                CreateDefaultLibraryService(),
+                new TagService(),
                 new AppSettingsRepository(new AppStorageService()),
                 new WatchFolderService(),
                 new StorageUsageService())
@@ -157,12 +159,14 @@ namespace MiniZotero.ViewModels
         }
 
         public SidebarViewModel(
-            DocumentRepository documentRepository,
+            LibraryService libraryService,
+            TagService tagService,
             AppSettingsRepository settingsRepository,
             WatchFolderService watchFolderService,
             StorageUsageService storageUsageService)
         {
-            _documentRepository = documentRepository;
+            _libraryService = libraryService;
+            _tagService = tagService;
             _settingsRepository = settingsRepository;
             _watchFolderService = watchFolderService;
             _storageUsageService = storageUsageService;
@@ -194,13 +198,23 @@ namespace MiniZotero.ViewModels
                 _watchFolderService.Start(WatchFolderPath);
             }
 
-            foreach (var document in _documentRepository.LoadDocuments())
+            foreach (var document in _libraryService.LoadDocuments())
             {
                 Documents.Add(document);
             }
 
             RebuildTags();
             ApplyDocumentFilter();
+        }
+
+        private static LibraryService CreateDefaultLibraryService()
+        {
+            var storageService = new AppStorageService();
+            var documentRepository = new DocumentRepository(storageService, new AutoTagService());
+            var noteRepository = new NoteRepository(storageService);
+            var noteService = new NoteService(noteRepository, new MarkdownExportService());
+
+            return new LibraryService(documentRepository, noteService);
         }
 
         [ObservableProperty]
@@ -218,6 +232,9 @@ namespace MiniZotero.ViewModels
 
         [ObservableProperty]
         private string _newTagText = string.Empty;
+
+        [ObservableProperty]
+        private string _statusMessage = "Ready";
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsWatchFolderConfigured))]
@@ -291,9 +308,21 @@ namespace MiniZotero.ViewModels
         public bool IsWatchFolderConfigured => !string.IsNullOrWhiteSpace(WatchFolderPath);
 
         public string WatchFolderStatusText =>
-            IsWatchFolderConfigured
-                ? $"Đang theo dõi: {Path.GetFileName(WatchFolderPath)}"
-                : "Not configured";
+            !IsWatchFolderConfigured
+                ? "Not configured"
+                : Directory.Exists(WatchFolderPath)
+                    ? $"Watching: {Path.GetFileName(WatchFolderPath)}"
+                    : "Folder missing";
+
+        public bool IsWatchFolderHealthy =>
+            IsWatchFolderConfigured && Directory.Exists(WatchFolderPath);
+
+        public string WatchFolderStateText =>
+            !IsWatchFolderConfigured
+                ? "Not configured"
+                : IsWatchFolderHealthy
+                    ? "Watching"
+                    : "Folder missing";
 
         public string StorageUsageText
         {
@@ -306,31 +335,67 @@ namespace MiniZotero.ViewModels
 
         public void AddDocument(string filePath)
         {
-            if (string.IsNullOrWhiteSpace(filePath))
+            var result = _libraryService.ImportDocument(filePath, Documents);
+            StatusMessage = result.Message;
+
+            if (!result.Succeeded || result.Value is null)
             {
                 return;
             }
 
-            var document = _documentRepository.ImportDocument(filePath, Documents);
-            if (!Documents.Any(existingDocument => existingDocument.Id == document.Id))
+            RebuildTags();
+            ApplyDocumentFilter();
+            ApplySearchFilter();
+
+            SelectedDocument = result.Value.Document;
+        }
+
+        public void AddDocuments(IEnumerable<string> filePaths)
+        {
+            var imported = 0;
+            var skipped = 0;
+            var failed = 0;
+            DocumentItem? lastDocument = null;
+
+            foreach (var filePath in filePaths)
             {
-                Documents.Add(document);
-            }
-            else if (document.IsDeleted)
-            {
-                document.IsDeleted = false;
-                document.DeletedAt = null;
+                var result = _libraryService.ImportDocument(filePath, Documents);
+
+                if (!result.Succeeded || result.Value is null)
+                {
+                    failed++;
+                    continue;
+                }
+
+                lastDocument = result.Value.Document;
+
+                if (result.Value.Status == ImportDocumentStatus.SkippedDuplicate)
+                {
+                    skipped++;
+                }
+                else
+                {
+                    imported++;
+                }
             }
 
-            PersistDocumentsAndRefresh();
+            RebuildTags();
+            ApplyDocumentFilter();
+            ApplySearchFilter();
 
-            SelectedDocument = document;
+            if (lastDocument is not null)
+            {
+                SelectedDocument = lastDocument;
+            }
+
+            StatusMessage = $"Import finished: {imported} added, {skipped} skipped, {failed} failed.";
         }
 
         public void SetWatchFolder(string folderPath)
         {
             if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
             {
+                StatusMessage = "Choose an existing folder.";
                 return;
             }
 
@@ -342,6 +407,13 @@ namespace MiniZotero.ViewModels
             });
 
             _watchFolderService.Start(folderPath);
+            StatusMessage = $"Watching {Path.GetFileName(folderPath)}.";
+        }
+
+        partial void OnWatchFolderPathChanged(string? value)
+        {
+            OnPropertyChanged(nameof(IsWatchFolderHealthy));
+            OnPropertyChanged(nameof(WatchFolderStateText));
         }
 
         partial void OnSearchTextChanged(string value)
@@ -399,8 +471,7 @@ namespace MiniZotero.ViewModels
                     return;
                 }
 
-                value.LastOpenedAt = DateTimeOffset.Now;
-                _documentRepository.SaveDocuments(Documents);
+                _libraryService.MarkDocumentOpened(value, Documents);
 
                 if (ShouldRefreshDocumentListAfterOpen())
                 {
@@ -457,9 +528,8 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            document.IsStarred = !document.IsStarred;
-
-            PersistDocumentsAndRefresh(rebuildTags: false);
+            _libraryService.ToggleStar(document, Documents);
+            RefreshAfterDocumentChange(rebuildTags: false);
         }
 
         [RelayCommand]
@@ -488,15 +558,7 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            SelectedDocument.Tags ??= [];
-
-            var exists = SelectedDocument.Tags.Any(existingTag =>
-                string.Equals(existingTag, tag, StringComparison.OrdinalIgnoreCase));
-
-            if (!exists)
-            {
-                SelectedDocument.Tags.Add(tag);
-            }
+            _tagService.AddTag(SelectedDocument, tag);
 
             NewTagText = string.Empty;
 
@@ -511,8 +573,7 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            SelectedDocument.Tags.RemoveAll(existingTag =>
-                string.Equals(existingTag, tag, StringComparison.OrdinalIgnoreCase));
+            _tagService.RemoveTag(SelectedDocument, tag);
 
             PersistDocumentsAndRefresh();
         }
@@ -533,11 +594,10 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            SelectedDocument.IsDeleted = true;
-            SelectedDocument.DeletedAt = DateTimeOffset.Now;
+            _libraryService.MoveToTrash(SelectedDocument, Documents);
 
             SelectedDocument = null;
-            PersistDocumentsAndRefresh();
+            RefreshAfterDocumentChange();
         }
 
         [RelayCommand]
@@ -548,11 +608,10 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            SelectedDocument.IsDeleted = false;
-            SelectedDocument.DeletedAt = null;
+            _libraryService.Restore(SelectedDocument, Documents);
 
             SelectedDocument = null;
-            PersistDocumentsAndRefresh();
+            RefreshAfterDocumentChange();
         }
 
         [RelayCommand]
@@ -566,16 +625,20 @@ namespace MiniZotero.ViewModels
             var document = SelectedDocument;
             SelectedDocument = null;
 
-            _documentRepository.DeleteStoredPdfFile(document);
-            Documents.Remove(document);
+            _libraryService.DeleteForever(document, Documents);
 
-            PersistDocumentsAndRefresh();
+            RefreshAfterDocumentChange();
         }
 
         private void PersistDocumentsAndRefresh(bool rebuildTags = true)
         {
-            _documentRepository.SaveDocuments(Documents);
+            _libraryService.SaveDocuments(Documents);
 
+            RefreshAfterDocumentChange(rebuildTags);
+        }
+
+        private void RefreshAfterDocumentChange(bool rebuildTags = true)
+        {
             if (rebuildTags)
             {
                 RebuildTags();
@@ -596,7 +659,11 @@ namespace MiniZotero.ViewModels
             FilteredDocuments.Clear();
             DocumentExplorerItems.Clear();
 
-            var documents = ApplySmartCollectionFilter(GetNavigationDocuments());
+            var documents = _libraryService.ApplySmartCollectionFilter(
+                _libraryService.GetNavigationDocuments(
+                    Documents,
+                    SelectedNavigationItem?.Name),
+                SelectedSmartCollection?.Kind);
 
             if (SelectedTag is not null)
             {
@@ -633,16 +700,9 @@ namespace MiniZotero.ViewModels
             {
                 Tags.Clear();
 
-                var tagGroups = Documents
-                    .Where(document => !document.IsDeleted)
-                    .SelectMany(document => document.Tags)
-                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                    .GroupBy(tag => tag.Trim(), StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(group => group.Key);
-
-                foreach (var group in tagGroups)
+                foreach (var tag in _tagService.GetTagCounts(Documents))
                 {
-                    Tags.Add(new TagItem(group.Key, group.Count().ToString()));
+                    Tags.Add(new TagItem(tag.Name, tag.Count.ToString()));
                 }
 
                 SelectedTag = !string.IsNullOrWhiteSpace(selectedTagName)
@@ -721,8 +781,12 @@ namespace MiniZotero.ViewModels
                 return;
             }
 
-            var documents = ApplySmartCollectionFilter(GetNavigationDocuments())
-                .Where(document => MatchesSearch(document, query))
+            var documents = _libraryService.ApplySmartCollectionFilter(
+                    _libraryService.GetNavigationDocuments(
+                        Documents,
+                        SelectedNavigationItem?.Name),
+                    SelectedSmartCollection?.Kind)
+                .Where(document => _libraryService.MatchesSearch(document, query))
                 .OrderBy(document => document.Title);
 
             foreach (var document in documents)
@@ -731,63 +795,6 @@ namespace MiniZotero.ViewModels
             }
 
             NotifyDocumentStateChanged();
-        }
-
-        private static bool MatchesSearch(DocumentItem document, string keyword)
-        {
-            return Contains(document.Title, keyword) ||
-                   Contains(document.FilePath, keyword) ||
-                   Contains(document.OriginalFilePath, keyword) ||
-                   document.Tags.Any(tag => Contains(tag, keyword));
-        }
-
-        private static bool Contains(string? value, string keyword)
-        {
-            return !string.IsNullOrWhiteSpace(value) &&
-                   value.Contains(keyword, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private IEnumerable<DocumentItem> GetNavigationDocuments()
-        {
-            var documents = Documents.AsEnumerable();
-
-            return SelectedNavigationItem?.Name switch
-            {
-                "Recent" => documents
-                    .Where(document => !document.IsDeleted && document.LastOpenedAt is not null)
-                    .OrderByDescending(document => document.LastOpenedAt),
-
-                "Starred" => documents
-                    .Where(document => !document.IsDeleted && document.IsStarred)
-                    .OrderBy(document => document.Title),
-
-                "Trash" => documents
-                    .Where(document => document.IsDeleted)
-                    .OrderByDescending(document => document.DeletedAt),
-
-                _ => documents
-                    .Where(document => !document.IsDeleted)
-                    .OrderBy(document => document.Title)
-            };
-        }
-
-        private IEnumerable<DocumentItem> ApplySmartCollectionFilter(IEnumerable<DocumentItem> documents)
-        {
-            return SelectedSmartCollection?.Kind switch
-            {
-                "reading" => documents.Where(document => document.LastReadPage > 1),
-
-                "new" => documents.Where(document =>
-                    document.AddedAt >= DateTimeOffset.Now.AddDays(-7)),
-
-                "recent" => documents
-                    .Where(document => document.LastOpenedAt is not null)
-                    .OrderByDescending(document => document.LastOpenedAt),
-
-                "unread" => documents.Where(document => document.LastOpenedAt is null),
-
-                _ => documents
-            };
         }
 
         private void NotifyDocumentStateChanged()

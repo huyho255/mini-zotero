@@ -36,10 +36,9 @@ namespace MiniZotero.Views
                 ]
             });
 
-            foreach (var file in pdfFiles.Where(file => file.Path.IsFile))
-            {
-                viewModel.AddDocument(Uri.UnescapeDataString(file.Path.LocalPath));
-            }
+            viewModel.AddDocuments(pdfFiles
+                .Where(file => file.Path.IsFile)
+                .Select(file => Uri.UnescapeDataString(file.Path.LocalPath)));
         }
 
         private async void OnConfigureWatchFolderClicked(object? sender, RoutedEventArgs e)
