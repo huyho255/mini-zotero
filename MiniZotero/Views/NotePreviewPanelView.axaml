@@ -293,6 +293,7 @@
                                                         HorizontalAlignment="Stretch"
                                                         HorizontalContentAlignment="Stretch">
                                                     <TextBlock Text="{Binding Text}"
+                                                               Foreground="Black"
                                                                TextWrapping="Wrap"
                                                                MaxLines="4"
                                                                FontSize="{Binding #Root.DataContext.PreviewFontSize}"/>

@@ -728,6 +728,8 @@ namespace MiniZotero.ViewModels
             StatusMessage = $"Deleted collection {collection.Name}.";
         }
 
+        public event Action<DocumentItem>? OpenDocumentRequested;
+
         [RelayCommand]
         private void AddSelectedDocumentToCollection()
         {
@@ -740,6 +742,16 @@ namespace MiniZotero.ViewModels
             SaveCollections();
             ApplyDocumentFilter();
             StatusMessage = $"Added to {SelectedCollection.Name}.";
+        }
+
+        [RelayCommand]
+        private void RequestOpenDocument(DocumentItem? document)
+        {
+            if (document is null || document.IsDeleted)
+            {
+                return;
+            }
+            OpenDocumentRequested?.Invoke(document);
         }
 
         [RelayCommand]

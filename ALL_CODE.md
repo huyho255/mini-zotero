@@ -7724,13 +7724,12 @@ namespace MiniZotero.ViewModels
                 {
                     StatusMessage = Sidebar.StatusMessage;
                 }
+            };
 
-                if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
-                    Sidebar.SelectedDocument is { } document)
-                {
-                    ApplyDefaultZoomForUnreadDocument(document);
-                    Workspace.OpenDocument(document);
-                }
+            Sidebar.OpenDocumentRequested += document =>
+            {
+                ApplyDefaultZoomForUnreadDocument(document);
+                Workspace.OpenDocument(document);
             };
         }
 
@@ -9354,6 +9353,8 @@ namespace MiniZotero.ViewModels
             StatusMessage = $"Deleted collection {collection.Name}.";
         }
 
+        public event Action<DocumentItem>? OpenDocumentRequested;
+
         [RelayCommand]
         private void AddSelectedDocumentToCollection()
         {
@@ -9366,6 +9367,16 @@ namespace MiniZotero.ViewModels
             SaveCollections();
             ApplyDocumentFilter();
             StatusMessage = $"Added to {SelectedCollection.Name}.";
+        }
+
+        [RelayCommand]
+        private void RequestOpenDocument(DocumentItem? document)
+        {
+            if (document is null || document.IsDeleted)
+            {
+                return;
+            }
+            OpenDocumentRequested?.Invoke(document);
         }
 
         [RelayCommand]
@@ -10451,6 +10462,7 @@ namespace MiniZotero.Views
                                                         HorizontalAlignment="Stretch"
                                                         HorizontalContentAlignment="Stretch">
                                                     <TextBlock Text="{Binding Text}"
+                                                               Foreground="Black"
                                                                TextWrapping="Wrap"
                                                                MaxLines="4"
                                                                FontSize="{Binding #Root.DataContext.PreviewFontSize}"/>
@@ -11219,7 +11231,7 @@ namespace MiniZotero.Views
                                  SelectedItem="{Binding SelectedExplorerItem, Mode=TwoWay}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:DocumentExplorerItem">
-                                    <Border Padding="2,0">
+                                    <Border Padding="2,0" DoubleTapped="OnDocumentDoubleTapped" Background="Transparent">
                                         <Grid Height="24" ColumnDefinitions="Auto,Auto,*,Auto">
                                             <Button Classes="SidebarIconButton"
                                                     Content="{Binding ChevronIcon}"
@@ -11511,6 +11523,15 @@ namespace MiniZotero.Views
         public SidebarView()
         {
             InitializeComponent();
+        }
+
+        private void OnDocumentDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
+        {
+            if (sender is Avalonia.Controls.Control { DataContext: ViewModels.DocumentExplorerItem { IsDocument: true } item } &&
+                DataContext is ViewModels.SidebarViewModel vm)
+            {
+                vm.RequestOpenDocumentCommand.Execute(item.Document);
+            }
         }
     }
 }
