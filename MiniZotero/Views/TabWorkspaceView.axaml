@@ -28,6 +28,8 @@
             <Setter Property="CornerRadius" Value="7"/>
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.RailButton:pointerover">
             <Setter Property="Background" Value="#EEF2F7"/>
@@ -44,6 +46,8 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="7"/>
             <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="ToggleButton.RailButton:pointerover">
             <Setter Property="Background" Value="#EEF2F7"/>
@@ -129,12 +133,28 @@
                 BorderBrush="#D5DDE7"
                 BorderThickness="0,0,1,0">
             <StackPanel Margin="4,10" Spacing="8">
-                <Button Classes="RailButton" Content="&#xE8A5;"/>
+                <Button Classes="RailButton">
+                    <Grid Width="20" Height="24">
+                        <TextBlock Text="&#xE8A5;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="15"
+                                   Foreground="{Binding $parent[Button].Foreground}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Button>
                 <ToggleButton Classes="RailButton"
-                              Content="&#xE7C9;"
-                              FontFamily="Segoe MDL2 Assets"
                               IsChecked="{Binding PdfViewer.IsHandToolActive, Mode=OneWay}"
-                              Click="OnHandToolClicked"/>
+                              Click="OnHandToolClicked">
+                    <Grid Width="20" Height="24">
+                        <TextBlock Text="&#xE7C9;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="15"
+                                   Foreground="{Binding $parent[ToggleButton].Foreground}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </ToggleButton>
                 <ToggleButton Classes="RailButton"
                               IsChecked="{Binding PdfViewer.IsSelectToolActive, Mode=OneWay}"
                               Click="OnSelectToolClicked">
@@ -151,12 +171,37 @@
                     </Canvas>
                 </ToggleButton>
                 <ToggleButton Classes="RailButton"
-                              Content="&#xE70F;"
-                              FontFamily="Segoe MDL2 Assets"
                               IsChecked="{Binding PdfViewer.IsHighlightToolActive, Mode=OneWay}"
-                              Click="OnHighlightToolClicked"/>
-                <Button Classes="RailButton" Content="&#xE8A7;"/>
-                <Button Classes="RailButton" Content="&#xE712;"/>
+                              Click="OnHighlightToolClicked">
+                    <Grid Width="20" Height="24">
+                        <TextBlock Text="&#xE70F;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="15"
+                                   Foreground="{Binding $parent[ToggleButton].Foreground}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </ToggleButton>
+                <Button Classes="RailButton">
+                    <Grid Width="20" Height="24">
+                        <TextBlock Text="&#xE8A7;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="15"
+                                   Foreground="{Binding $parent[Button].Foreground}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Button>
+                <Button Classes="RailButton">
+                    <Grid Width="20" Height="24">
+                        <TextBlock Text="&#xE712;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="15"
+                                   Foreground="{Binding $parent[Button].Foreground}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Button>
             </StackPanel>
         </Border>
 
