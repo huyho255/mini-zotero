@@ -256,8 +256,44 @@
             </StackPanel>
         </Border>
 
-        <views:PdfViewerView Grid.Row="1"
-                             Grid.Column="1"
-                             DataContext="{Binding ActiveTab.PdfViewer}"/>
+        <Grid Grid.Row="1" Grid.Column="1">
+            <Border Background="#F8FAFC"
+                    BorderBrush="#D5DDE7"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Margin="20"
+                    IsVisible="{Binding IsEmptyViewVisible}">
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="8"
+                            Width="360">
+                    <TextBlock Text="Select a document to view"
+                               Foreground="#172033"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Import a PDF file from the sidebar."
+                               Foreground="#7C8A9E"
+                               FontSize="13"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding OpenTabs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Grid/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DocumentTabViewModel">
+                        <Grid IsVisible="{Binding IsActive}">
+                            <views:PdfViewerView DataContext="{Binding PdfViewer}" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
     </Grid>
 </UserControl>

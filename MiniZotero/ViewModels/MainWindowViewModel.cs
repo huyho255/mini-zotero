@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MiniZotero.Models;
@@ -11,6 +12,7 @@ namespace MiniZotero.ViewModels
     {
         private readonly IApplicationServices _services;
         private readonly ILibraryService _libraryService;
+        private bool _isRestoringWorkspace;
 
         [ObservableProperty]
         private string _statusMessage = "Ready";
@@ -72,6 +74,8 @@ namespace MiniZotero.ViewModels
                 }
             };
 
+            Workspace.OpenTabs.CollectionChanged += (_, _) => SaveWorkspaceState();
+
             Workspace.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(TabWorkspaceViewModel.ActiveDocument))
@@ -88,6 +92,8 @@ namespace MiniZotero.ViewModels
                         Notes.OpenDocument(Workspace.ActiveDocument);
                         Workspace.ActivePdfViewer?.LoadHighlightsIntoViewer(Notes.Highlights);
                     }
+
+                    SaveWorkspaceState();
                 }
             };
 
@@ -104,6 +110,8 @@ namespace MiniZotero.ViewModels
                 ApplyDefaultZoomForUnreadDocument(document);
                 Workspace.OpenDocument(document);
             };
+
+            RestoreWorkspaceState();
         }
 
         public SidebarViewModel Sidebar { get; }
@@ -154,15 +162,64 @@ namespace MiniZotero.ViewModels
             document.LastZoomPercent = Math.Clamp(settings.DefaultPdfZoomPercent, 50, 400);
         }
 
-        private void ClearTrash()
+        private async Task ClearTrash()
         {
-            foreach (var document in Sidebar.Documents.Where(document => document.IsDeleted).ToList())
+            await _libraryService.EmptyTrashAsync(Sidebar.Documents);
+            Sidebar.RefreshAfterDocumentChange();
+            StatusMessage = "Trash cleared.";
+        }
+
+        private void RestoreWorkspaceState()
+        {
+            var settings = _services.SettingsRepository.LoadSettings();
+            if (!settings.RestorePreviousSession || settings.OpenDocumentIds.Count == 0)
             {
-                _libraryService.DeleteForever(document, Sidebar.Documents);
+                return;
             }
 
-            _libraryService.SaveDocuments(Sidebar.Documents);
-            StatusMessage = "Trash cleared.";
+            _isRestoringWorkspace = true;
+
+            try
+            {
+                var openDocuments = Sidebar.Documents
+                    .Where(d => settings.OpenDocumentIds.Contains(d.Id))
+                    .ToList();
+
+                foreach (var id in settings.OpenDocumentIds)
+                {
+                    var doc = openDocuments.FirstOrDefault(d => d.Id == id);
+                    if (doc is not null)
+                    {
+                        Workspace.OpenDocument(doc);
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(settings.ActiveDocumentId))
+                {
+                    var activeTab = Workspace.OpenTabs.FirstOrDefault(t => t.Document.Id == settings.ActiveDocumentId);
+                    if (activeTab is not null)
+                    {
+                        Workspace.SetActiveTabCommand.Execute(activeTab);
+                    }
+                }
+            }
+            finally
+            {
+                _isRestoringWorkspace = false;
+            }
+        }
+
+        private void SaveWorkspaceState()
+        {
+            if (_isRestoringWorkspace)
+            {
+                return;
+            }
+
+            var settings = _services.SettingsRepository.LoadSettings();
+            settings.OpenDocumentIds = Workspace.OpenTabs.Select(t => t.Document.Id).ToList();
+            settings.ActiveDocumentId = Workspace.ActiveDocument?.Id;
+            _services.SettingsRepository.SaveSettings(settings);
         }
     }
 }

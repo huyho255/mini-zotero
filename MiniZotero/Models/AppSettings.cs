@@ -8,7 +8,11 @@ namespace MiniZotero.Models
 
         public int DefaultPdfZoomPercent { get; set; } = 120;
 
-        public bool AutoOpenLastDocument { get; set; }
+        public bool RestorePreviousSession { get; set; }
+
+        public System.Collections.Generic.List<string> OpenDocumentIds { get; set; } = new();
+
+        public string? ActiveDocumentId { get; set; }
 
         public string? StorageRootPath { get; set; }
     }
