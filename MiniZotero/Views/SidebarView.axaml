@@ -359,7 +359,7 @@
 
                                             <Button Grid.Column="3"
                                                     Classes="SidebarIconButton"
-                                                    Content="&#xE734;"
+                                                    Content="{Binding StarIcon}"
                                                     Width="24"
                                                     Height="24"
                                                     Foreground="{Binding IsStarred, Converter={StaticResource StarredBrushConverter}}"

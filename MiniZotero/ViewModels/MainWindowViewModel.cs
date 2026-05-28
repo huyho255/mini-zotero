@@ -59,6 +59,11 @@ namespace MiniZotero.ViewModels
                 Workspace.ActivePdfViewer?.NavigateToHighlight(highlight);
             };
 
+            Workspace.ToggleStarRequested += document =>
+            {
+                Sidebar.ToggleStarCommand.Execute(document);
+            };
+
             Notes.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(NotePreviewPanelViewModel.StatusMessage))

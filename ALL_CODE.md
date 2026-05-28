@@ -7742,6 +7742,11 @@ namespace MiniZotero.ViewModels
                 Workspace.ActivePdfViewer?.NavigateToHighlight(highlight);
             };
 
+            Workspace.ToggleStarRequested += document =>
+            {
+                Sidebar.ToggleStarCommand.Execute(document);
+            };
+
             Notes.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(NotePreviewPanelViewModel.StatusMessage))
@@ -8849,6 +8854,8 @@ namespace MiniZotero.ViewModels
 
         public bool IsStarred => Document?.IsStarred == true;
 
+        public string StarIcon => IsStarred ? "\uE735" : "\uE734";
+
         public bool IsStarButtonVisible => IsDocument && Document?.IsDeleted != true;
 
         public static DocumentExplorerItem Folder(string name, int count, bool isExpanded)
@@ -9795,6 +9802,8 @@ namespace MiniZotero.ViewModels
         [NotifyPropertyChangedFor(nameof(IsEmptyViewVisible))]
         [NotifyPropertyChangedFor(nameof(ActiveDocument))]
         [NotifyPropertyChangedFor(nameof(ActivePdfViewer))]
+        [NotifyPropertyChangedFor(nameof(ActiveDocumentIsStarred))]
+        [NotifyPropertyChangedFor(nameof(ActiveDocumentStarIcon))]
         private DocumentTabViewModel? _activeTab;
 
         public ObservableCollection<DocumentTabViewModel> OpenTabs { get; } = new();
@@ -9805,7 +9814,13 @@ namespace MiniZotero.ViewModels
 
         public bool IsEmptyViewVisible => ActiveTab is null;
 
+        public bool ActiveDocumentIsStarred => ActiveDocument?.IsStarred == true;
+
+        public string ActiveDocumentStarIcon => ActiveDocumentIsStarred ? "\uE735" : "\uE734";
+
         public event Action<string, int, System.Collections.Generic.IReadOnlyList<HighlightRect>>? HighlightCreated;
+        
+        public event Action<DocumentItem>? ToggleStarRequested;
 
         public void OpenDocument(DocumentItem document)
         {
@@ -9856,6 +9871,17 @@ namespace MiniZotero.ViewModels
             if (tab is not null)
             {
                 ActiveTab = tab;
+            }
+        }
+
+        [RelayCommand]
+        private void ToggleStar()
+        {
+            if (ActiveDocument is not null)
+            {
+                ToggleStarRequested?.Invoke(ActiveDocument);
+                OnPropertyChanged(nameof(ActiveDocumentIsStarred));
+                OnPropertyChanged(nameof(ActiveDocumentStarIcon));
             }
         }
 
@@ -11514,7 +11540,7 @@ namespace MiniZotero.Views
 
                                             <Button Grid.Column="3"
                                                     Classes="SidebarIconButton"
-                                                    Content="&#xE734;"
+                                                    Content="{Binding StarIcon}"
                                                     Width="24"
                                                     Height="24"
                                                     Foreground="{Binding IsStarred, Converter={StaticResource StarredBrushConverter}}"
@@ -11765,9 +11791,14 @@ namespace MiniZotero.Views
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="using:MiniZotero.Views"
              xmlns:vm="using:MiniZotero.ViewModels"
+             xmlns:converters="using:MiniZotero.Converters"
              x:Class="MiniZotero.Views.TabWorkspaceView"
              x:Name="Root"
              x:DataType="vm:TabWorkspaceViewModel">
+
+    <UserControl.Resources>
+        <converters:StarredBrushConverter x:Key="StarredBrushConverter"/>
+    </UserControl.Resources>
 
     <UserControl.Styles>
         <Style Selector="Button.ToolButton">
@@ -11894,7 +11925,11 @@ namespace MiniZotero.Views
                             Content="&#xE8A7;"
                             Command="{Binding ActiveTab.PdfViewer.FitPageCommand}"
                             ToolTip.Tip="Fit page"/>
-                    <Button Classes="ToolButton" Content="&#xE734;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
+                    <Button Classes="ToolButton" 
+                            Content="{Binding ActiveDocumentStarIcon}"
+                            Foreground="{Binding ActiveDocumentIsStarred, Converter={StaticResource StarredBrushConverter}}"
+                            Command="{Binding ToggleStarCommand}"
+                            ToolTip.Tip="Toggle star"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
