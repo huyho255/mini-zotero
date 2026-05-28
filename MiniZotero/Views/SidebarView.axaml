@@ -292,10 +292,15 @@
                                                         Height="16"
                                                         VerticalAlignment="Center"
                                                         IsVisible="{Binding IsDocument}">
-                                                    <Path Stroke="#F04444"
-                                                          StrokeThickness="1.7"
+                                                    <Path Stroke="#EF4444"
+                                                          StrokeThickness="1.35"
                                                           StrokeLineCap="Round"
-                                                          Data="M8,2 C7.35,5.65 6.05,9.2 4.2,13 M8,2 C8.75,6.5 10.15,9.65 12.9,13 M4.2,13 C6.45,11.55 9.55,10.85 12.9,13 M5.35,9.95 C7.15,9.15 9.35,9.05 11.15,9.55"/>
+                                                          Fill="Transparent"
+                                                          Data="M4,2.5 L9.6,2.5 L12.5,5.4 L12.5,13.5 L4,13.5 Z"/>
+                                                    <Path Stroke="#EF4444"
+                                                          StrokeThickness="1.35"
+                                                          StrokeLineCap="Round"
+                                                          Data="M9.6,2.5 L9.6,5.4 L12.5,5.4"/>
                                                 </Canvas>
                                             </Grid>
 
