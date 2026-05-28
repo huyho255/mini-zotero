@@ -29,12 +29,7 @@ namespace MiniZotero.Helpers
             text ??= string.Empty;
             var range = GetSelectedRange(text, selectionStart, selectionLength);
 
-            if (range.Length == 0)
-            {
-                return KeepSelection(text, selectionStart, selectionLength);
-            }
-
-            var selectedText = text.Substring(range.Start, range.Length);
+            var selectedText = range.Length == 0 ? "link text" : text.Substring(range.Start, range.Length);
             var replacement = $"[{selectedText}](https://)";
             var newText = text.Remove(range.Start, range.Length)
                 .Insert(range.Start, replacement);
@@ -93,7 +88,12 @@ namespace MiniZotero.Helpers
 
             if (range.Length == 0)
             {
-                return KeepSelection(text, selectionStart, selectionLength);
+                var placeholder = "code";
+                var prefix0 = "`";
+                var suffix0 = "`";
+                var insertText = $"{prefix0}{placeholder}{suffix0}";
+                var newText0 = text.Insert(range.Start, insertText);
+                return new MarkdownFormatResult(newText0, range.Start + prefix0.Length, placeholder.Length);
             }
 
             var selectedText = text.Substring(range.Start, range.Length);
@@ -123,6 +123,52 @@ namespace MiniZotero.Helpers
             return new MarkdownFormatResult(newText, selectionStart + insertion.Length, 0);
         }
 
+        public static MarkdownFormatResult ApplyTable(
+            string text,
+            int selectionStart,
+            int selectionLength,
+            int rows,
+            int cols)
+        {
+            text ??= string.Empty;
+            selectionStart = Math.Clamp(selectionStart, 0, text.Length);
+
+            var prefix = selectionStart > 0 && text[selectionStart - 1] != '\n' ? "\n" : string.Empty;
+            var suffix = selectionStart < text.Length && text[selectionStart] != '\n' ? "\n" : string.Empty;
+            
+            var sb = new System.Text.StringBuilder();
+            
+            sb.Append("|");
+            for (int c = 1; c <= cols; c++)
+            {
+                sb.Append($" Header {c} |");
+            }
+            sb.AppendLine();
+            
+            sb.Append("|");
+            for (int c = 1; c <= cols; c++)
+            {
+                sb.Append(" -------- |");
+            }
+            
+            for (int r = 1; r < rows; r++)
+            {
+                sb.AppendLine();
+                sb.Append("|");
+                for (int c = 1; c <= cols; c++)
+                {
+                    sb.Append($" Cell {r}-{c}   |");
+                }
+            }
+
+            var tableTemplate = sb.ToString();
+
+            var insertion = $"{prefix}{tableTemplate}{suffix}";
+            var newText = text.Insert(selectionStart, insertion);
+
+            return new MarkdownFormatResult(newText, selectionStart + prefix.Length + 2, 8);
+        }
+
         private static MarkdownFormatResult WrapInline(
             string text,
             int selectionStart,
@@ -136,7 +182,12 @@ namespace MiniZotero.Helpers
 
             if (range.Length == 0)
             {
-                return KeepSelection(text, selectionStart, selectionLength);
+                var insertText = $"{prefix}{placeholder}{suffix}";
+                var newText0 = text.Insert(range.Start, insertText);
+                return new MarkdownFormatResult(
+                    newText0,
+                    range.Start + prefix.Length,
+                    placeholder.Length);
             }
 
             var selectedText = text.Substring(range.Start, range.Length);
@@ -171,9 +222,9 @@ namespace MiniZotero.Helpers
             selectionStart = Math.Clamp(selectionStart, 0, text.Length);
             selectionLength = Math.Clamp(selectionLength, 0, text.Length - selectionStart);
 
-            if (text.Length == 0 || selectionLength == 0)
+            if (text.Length == 0)
             {
-                return KeepSelection(text, selectionStart, selectionLength);
+                return new MarkdownFormatResult(prefix, prefix.Length, 0);
             }
 
             var lineStart = text.LastIndexOf('\n', Math.Max(selectionStart - 1, 0));

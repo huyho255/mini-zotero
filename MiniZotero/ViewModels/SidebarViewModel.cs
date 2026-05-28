@@ -122,6 +122,8 @@ namespace MiniZotero.ViewModels
 
         public bool IsStarred => Document?.IsStarred == true;
 
+        public string StarIcon => IsStarred ? "\uE735" : "\uE734";
+
         public bool IsStarButtonVisible => IsDocument && Document?.IsDeleted != true;
 
         public static DocumentExplorerItem Folder(string name, int count, bool isExpanded)
@@ -728,6 +730,8 @@ namespace MiniZotero.ViewModels
             StatusMessage = $"Deleted collection {collection.Name}.";
         }
 
+        public event Action<DocumentItem>? OpenDocumentRequested;
+
         [RelayCommand]
         private void AddSelectedDocumentToCollection()
         {
@@ -740,6 +744,16 @@ namespace MiniZotero.ViewModels
             SaveCollections();
             ApplyDocumentFilter();
             StatusMessage = $"Added to {SelectedCollection.Name}.";
+        }
+
+        [RelayCommand]
+        private void RequestOpenDocument(DocumentItem? document)
+        {
+            if (document is null || document.IsDeleted)
+            {
+                return;
+            }
+            OpenDocumentRequested?.Invoke(document);
         }
 
         [RelayCommand]

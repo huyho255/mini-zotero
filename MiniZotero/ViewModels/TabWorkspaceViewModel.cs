@@ -36,6 +36,8 @@ namespace MiniZotero.ViewModels
         [NotifyPropertyChangedFor(nameof(IsEmptyViewVisible))]
         [NotifyPropertyChangedFor(nameof(ActiveDocument))]
         [NotifyPropertyChangedFor(nameof(ActivePdfViewer))]
+        [NotifyPropertyChangedFor(nameof(ActiveDocumentIsStarred))]
+        [NotifyPropertyChangedFor(nameof(ActiveDocumentStarIcon))]
         private DocumentTabViewModel? _activeTab;
 
         public ObservableCollection<DocumentTabViewModel> OpenTabs { get; } = new();
@@ -46,7 +48,13 @@ namespace MiniZotero.ViewModels
 
         public bool IsEmptyViewVisible => ActiveTab is null;
 
+        public bool ActiveDocumentIsStarred => ActiveDocument?.IsStarred == true;
+
+        public string ActiveDocumentStarIcon => ActiveDocumentIsStarred ? "\uE735" : "\uE734";
+
         public event Action<string, int, System.Collections.Generic.IReadOnlyList<HighlightRect>>? HighlightCreated;
+        
+        public event Action<DocumentItem>? ToggleStarRequested;
 
         public void OpenDocument(DocumentItem document)
         {
@@ -101,6 +109,17 @@ namespace MiniZotero.ViewModels
         }
 
         [RelayCommand]
+        private void ToggleStar()
+        {
+            if (ActiveDocument is not null)
+            {
+                ToggleStarRequested?.Invoke(ActiveDocument);
+                OnPropertyChanged(nameof(ActiveDocumentIsStarred));
+                OnPropertyChanged(nameof(ActiveDocumentStarIcon));
+            }
+        }
+
+        [RelayCommand]
         private void CloseDocumentTab(DocumentTabViewModel? tab)
         {
             CloseTab(tab);
@@ -110,6 +129,12 @@ namespace MiniZotero.ViewModels
         private void CloseActiveDocument()
         {
             CloseTab(ActiveTab);
+        }
+
+        [RelayCommand]
+        private void CloseAllTabs()
+        {
+            ClearAllTabs();
         }
 
         public void ClearAllTabs()

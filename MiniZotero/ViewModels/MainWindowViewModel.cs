@@ -59,6 +59,11 @@ namespace MiniZotero.ViewModels
                 Workspace.ActivePdfViewer?.NavigateToHighlight(highlight);
             };
 
+            Workspace.ToggleStarRequested += document =>
+            {
+                Sidebar.ToggleStarCommand.Execute(document);
+            };
+
             Notes.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(NotePreviewPanelViewModel.StatusMessage))
@@ -92,13 +97,12 @@ namespace MiniZotero.ViewModels
                 {
                     StatusMessage = Sidebar.StatusMessage;
                 }
+            };
 
-                if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
-                    Sidebar.SelectedDocument is { } document)
-                {
-                    ApplyDefaultZoomForUnreadDocument(document);
-                    Workspace.OpenDocument(document);
-                }
+            Sidebar.OpenDocumentRequested += document =>
+            {
+                ApplyDefaultZoomForUnreadDocument(document);
+                Workspace.OpenDocument(document);
             };
         }
 

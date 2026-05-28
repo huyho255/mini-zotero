@@ -29,6 +29,19 @@ namespace MiniZotero.ViewModels
         {
             _noteService = noteService;
             _highlightService = highlightService;
+
+            InitializeTableCells();
+        }
+
+        private void InitializeTableCells()
+        {
+            for (var row = 0; row < 10; row++)
+            {
+                for (var col = 0; col < 10; col++)
+                {
+                    TableCells.Add(new TableCellViewModel(row, col));
+                }
+            }
         }
 
         [ObservableProperty]
@@ -54,7 +67,12 @@ namespace MiniZotero.ViewModels
         [NotifyPropertyChangedFor(nameof(PreviewFontSize))]
         private int _previewZoomPercent = 100;
 
+        [ObservableProperty]
+        private string _tableSelectorText = "Insert Table";
+
         public ObservableCollection<HighlightItem> Highlights { get; } = [];
+
+        public ObservableCollection<TableCellViewModel> TableCells { get; } = [];
 
         public bool HasDocument => ActiveDocument is not null;
 
@@ -75,6 +93,8 @@ namespace MiniZotero.ViewModels
         public event Action<HighlightItem>? HighlightSelected;
 
         public event Action? HighlightsChanged;
+
+        public event Action<int, int>? TableInsertRequested;
 
         public void OpenDocument(DocumentItem document)
         {
@@ -231,6 +251,37 @@ namespace MiniZotero.ViewModels
             var result = _highlightService.DeleteHighlight(ActiveDocument.Id, highlight.Id);
             StatusMessage = result.Message;
             LoadHighlights(ActiveDocument.Id);
+        }
+
+        [RelayCommand]
+        private void HoverTableCell(TableCellViewModel? cell)
+        {
+            if (cell is null) return;
+
+            foreach (var c in TableCells)
+            {
+                c.IsSelected = c.Row <= cell.Row && c.Column <= cell.Column;
+            }
+
+            TableSelectorText = $"{cell.Row + 1} x {cell.Column + 1} Table";
+        }
+
+        [RelayCommand]
+        private void ResetTableSelection()
+        {
+            foreach (var c in TableCells)
+            {
+                c.IsSelected = false;
+            }
+            TableSelectorText = "Insert Table";
+        }
+
+        [RelayCommand]
+        private void InsertTable(TableCellViewModel? cell)
+        {
+            if (cell is null) return;
+
+            TableInsertRequested?.Invoke(cell.Row + 1, cell.Column + 1);
         }
 
         partial void OnNoteTextChanged(string value)
