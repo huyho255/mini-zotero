@@ -112,6 +112,12 @@ namespace MiniZotero.ViewModels
             CloseTab(ActiveTab);
         }
 
+        [RelayCommand]
+        private void CloseAllTabs()
+        {
+            ClearAllTabs();
+        }
+
         public void ClearAllTabs()
         {
             foreach (var tab in OpenTabs.ToList())

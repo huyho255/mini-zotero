@@ -9734,6 +9734,12 @@ namespace MiniZotero.ViewModels
             CloseTab(ActiveTab);
         }
 
+        [RelayCommand]
+        private void CloseAllTabs()
+        {
+            ClearAllTabs();
+        }
+
         public void ClearAllTabs()
         {
             foreach (var tab in OpenTabs.ToList())
@@ -9875,6 +9881,12 @@ namespace MiniZotero.ViewModels
                                             MinWidth="210"
                                             Height="34"
                                             Margin="0,0,2,0">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Close" Command="{Binding #Root.DataContext.Workspace.CloseDocumentTabCommand}" CommandParameter="{Binding}" />
+                                                <MenuItem Header="Close All" Command="{Binding #Root.DataContext.Workspace.CloseAllTabsCommand}" />
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
                                         <Grid ColumnDefinitions="Auto,*,Auto">
                                             <Button Grid.ColumnSpan="2"
                                                     Background="Transparent"
