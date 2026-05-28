@@ -13,6 +13,54 @@ namespace MiniZotero.Views
         public NotePreviewPanelView()
         {
             InitializeComponent();
+            DataContextChanged += OnDataContextChanged;
+        }
+
+        private void OnDataContextChanged(object? sender, EventArgs e)
+        {
+            if (DataContext is NotePreviewPanelViewModel viewModel)
+            {
+                viewModel.TableInsertRequested -= OnTableInsertRequested;
+                viewModel.TableInsertRequested += OnTableInsertRequested;
+            }
+        }
+
+        private void OnTableInsertRequested(int rows, int cols)
+        {
+            TableButton.Flyout?.Hide();
+
+            if (DataContext is not NotePreviewPanelViewModel viewModel ||
+                viewModel.ActiveDocument is null)
+            {
+                return;
+            }
+
+            var selectionStart = Math.Min(NoteTextBox.SelectionStart, NoteTextBox.SelectionEnd);
+            var selectionEnd = Math.Max(NoteTextBox.SelectionStart, NoteTextBox.SelectionEnd);
+            var selectionLength = selectionEnd - selectionStart;
+            
+            var result = TextBoxMarkdownFormatter.ApplyTable(NoteTextBox.Text ?? string.Empty, selectionStart, selectionLength, rows, cols);
+
+            NoteTextBox.Text = result.Text;
+            NoteTextBox.SelectionStart = result.SelectionStart;
+            NoteTextBox.SelectionEnd = result.SelectionStart + result.SelectionLength;
+            NoteTextBox.Focus();
+        }
+
+        private void OnTableFlyoutOpened(object? sender, EventArgs e)
+        {
+            if (DataContext is NotePreviewPanelViewModel viewModel)
+            {
+                viewModel.ResetTableSelectionCommand.Execute(null);
+            }
+        }
+
+        private void OnTableCellPointerEntered(object? sender, Avalonia.Input.PointerEventArgs e)
+        {
+            if (sender is Control control && control.DataContext is TableCellViewModel cell && DataContext is NotePreviewPanelViewModel viewModel)
+            {
+                viewModel.HoverTableCellCommand.Execute(cell);
+            }
         }
 
         private async void OnExportMarkdownClicked(object? sender, RoutedEventArgs e)

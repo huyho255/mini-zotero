@@ -157,7 +157,54 @@
                         <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Code" Click="OnCodeClicked"/>
                         <Button Classes="FormatButton" Content="---" ToolTip.Tip="Horizontal rule" Click="OnHorizontalRuleClicked"/>
                         <Button Classes="FormatButton" Content="☐" ToolTip.Tip="Checkbox list" Click="OnCheckboxListClicked"/>
-                        <Button Classes="FormatButton" Content="&#xE80A;" FontFamily="Segoe MDL2 Assets" IsEnabled="False" ToolTip.Tip="Coming soon"/>
+                        <Button x:Name="TableButton" Classes="FormatButton" ToolTip.Tip="Table">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft" Opened="OnTableFlyoutOpened">
+                                    <StackPanel Spacing="8" Margin="4">
+                                        <TextBlock Text="{Binding TableSelectorText}" 
+                                                   HorizontalAlignment="Center" 
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"/>
+                                        <ItemsControl ItemsSource="{Binding TableCells}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="10" Rows="10"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Width="18" Height="18" Margin="1" Padding="0"
+                                                            Classes.selected="{Binding IsSelected}"
+                                                            Command="{Binding #Root.DataContext.InsertTableCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            PointerEntered="OnTableCellPointerEntered">
+                                                        <Button.Styles>
+                                                            <Style Selector="Button">
+                                                                <Setter Property="Background" Value="Transparent"/>
+                                                                <Setter Property="BorderBrush" Value="#D1D5DB"/>
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                                <Setter Property="CornerRadius" Value="2"/>
+                                                            </Style>
+                                                            <Style Selector="Button.selected">
+                                                                <Setter Property="Background" Value="#3B82F6"/>
+                                                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                                            </Style>
+                                                            <Style Selector="Button:pointerover">
+                                                                <Setter Property="Background" Value="#93C5FD"/>
+                                                            </Style>
+                                                        </Button.Styles>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <TextBlock Text="&#xE80A;" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center"/>
+                                <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
 
@@ -293,6 +340,7 @@
                                                         HorizontalAlignment="Stretch"
                                                         HorizontalContentAlignment="Stretch">
                                                     <TextBlock Text="{Binding Text}"
+                                                               Foreground="Black"
                                                                TextWrapping="Wrap"
                                                                MaxLines="4"
                                                                FontSize="{Binding #Root.DataContext.PreviewFontSize}"/>

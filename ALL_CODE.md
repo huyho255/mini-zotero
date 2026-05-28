@@ -1346,11 +1346,11 @@ _Skipped binary or large file. Size: 175875 bytes._
 
 ## MiniZotero/Assets/PdfJs/build/pdf.mjs
 
-_Skipped binary or large file. Size: 817035 bytes._
+_Skipped binary or large file. Size: 843985 bytes._
 
 ## MiniZotero/Assets/PdfJs/build/pdf.worker.mjs
 
-_Skipped binary or large file. Size: 2161149 bytes._
+_Skipped binary or large file. Size: 2224281 bytes._
 
 ## MiniZotero/Assets/PdfJs/cmaps/78-EUC-H.bcmap
 
@@ -4651,12 +4651,7 @@ namespace MiniZotero.Helpers
             text ??= string.Empty;
             var range = GetSelectedRange(text, selectionStart, selectionLength);
 
-            if (range.Length == 0)
-            {
-                return KeepSelection(text, selectionStart, selectionLength);
-            }
-
-            var selectedText = text.Substring(range.Start, range.Length);
+            var selectedText = range.Length == 0 ? "link text" : text.Substring(range.Start, range.Length);
             var replacement = $"[{selectedText}](https://)";
             var newText = text.Remove(range.Start, range.Length)
                 .Insert(range.Start, replacement);
@@ -4715,7 +4710,12 @@ namespace MiniZotero.Helpers
 
             if (range.Length == 0)
             {
-                return KeepSelection(text, selectionStart, selectionLength);
+                var placeholder = "code";
+                var prefix0 = "`";
+                var suffix0 = "`";
+                var insertText = $"{prefix0}{placeholder}{suffix0}";
+                var newText0 = text.Insert(range.Start, insertText);
+                return new MarkdownFormatResult(newText0, range.Start + prefix0.Length, placeholder.Length);
             }
 
             var selectedText = text.Substring(range.Start, range.Length);
@@ -4745,6 +4745,52 @@ namespace MiniZotero.Helpers
             return new MarkdownFormatResult(newText, selectionStart + insertion.Length, 0);
         }
 
+        public static MarkdownFormatResult ApplyTable(
+            string text,
+            int selectionStart,
+            int selectionLength,
+            int rows,
+            int cols)
+        {
+            text ??= string.Empty;
+            selectionStart = Math.Clamp(selectionStart, 0, text.Length);
+
+            var prefix = selectionStart > 0 && text[selectionStart - 1] != '\n' ? "\n" : string.Empty;
+            var suffix = selectionStart < text.Length && text[selectionStart] != '\n' ? "\n" : string.Empty;
+            
+            var sb = new System.Text.StringBuilder();
+            
+            sb.Append("|");
+            for (int c = 1; c <= cols; c++)
+            {
+                sb.Append($" Header {c} |");
+            }
+            sb.AppendLine();
+            
+            sb.Append("|");
+            for (int c = 1; c <= cols; c++)
+            {
+                sb.Append(" -------- |");
+            }
+            
+            for (int r = 1; r < rows; r++)
+            {
+                sb.AppendLine();
+                sb.Append("|");
+                for (int c = 1; c <= cols; c++)
+                {
+                    sb.Append($" Cell {r}-{c}   |");
+                }
+            }
+
+            var tableTemplate = sb.ToString();
+
+            var insertion = $"{prefix}{tableTemplate}{suffix}";
+            var newText = text.Insert(selectionStart, insertion);
+
+            return new MarkdownFormatResult(newText, selectionStart + prefix.Length + 2, 8);
+        }
+
         private static MarkdownFormatResult WrapInline(
             string text,
             int selectionStart,
@@ -4758,7 +4804,12 @@ namespace MiniZotero.Helpers
 
             if (range.Length == 0)
             {
-                return KeepSelection(text, selectionStart, selectionLength);
+                var insertText = $"{prefix}{placeholder}{suffix}";
+                var newText0 = text.Insert(range.Start, insertText);
+                return new MarkdownFormatResult(
+                    newText0,
+                    range.Start + prefix.Length,
+                    placeholder.Length);
             }
 
             var selectedText = text.Substring(range.Start, range.Length);
@@ -4793,9 +4844,9 @@ namespace MiniZotero.Helpers
             selectionStart = Math.Clamp(selectionStart, 0, text.Length);
             selectionLength = Math.Clamp(selectionLength, 0, text.Length - selectionStart);
 
-            if (text.Length == 0 || selectionLength == 0)
+            if (text.Length == 0)
             {
-                return KeepSelection(text, selectionStart, selectionLength);
+                return new MarkdownFormatResult(prefix, prefix.Length, 0);
             }
 
             var lineStart = text.LastIndexOf('\n', Math.Max(selectionStart - 1, 0));
@@ -7691,6 +7742,11 @@ namespace MiniZotero.ViewModels
                 Workspace.ActivePdfViewer?.NavigateToHighlight(highlight);
             };
 
+            Workspace.ToggleStarRequested += document =>
+            {
+                Sidebar.ToggleStarCommand.Execute(document);
+            };
+
             Notes.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(NotePreviewPanelViewModel.StatusMessage))
@@ -7724,13 +7780,12 @@ namespace MiniZotero.ViewModels
                 {
                     StatusMessage = Sidebar.StatusMessage;
                 }
+            };
 
-                if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
-                    Sidebar.SelectedDocument is { } document)
-                {
-                    ApplyDefaultZoomForUnreadDocument(document);
-                    Workspace.OpenDocument(document);
-                }
+            Sidebar.OpenDocumentRequested += document =>
+            {
+                ApplyDefaultZoomForUnreadDocument(document);
+                Workspace.OpenDocument(document);
             };
         }
 
@@ -7830,6 +7885,19 @@ namespace MiniZotero.ViewModels
         {
             _noteService = noteService;
             _highlightService = highlightService;
+
+            InitializeTableCells();
+        }
+
+        private void InitializeTableCells()
+        {
+            for (var row = 0; row < 10; row++)
+            {
+                for (var col = 0; col < 10; col++)
+                {
+                    TableCells.Add(new TableCellViewModel(row, col));
+                }
+            }
         }
 
         [ObservableProperty]
@@ -7855,7 +7923,12 @@ namespace MiniZotero.ViewModels
         [NotifyPropertyChangedFor(nameof(PreviewFontSize))]
         private int _previewZoomPercent = 100;
 
+        [ObservableProperty]
+        private string _tableSelectorText = "Insert Table";
+
         public ObservableCollection<HighlightItem> Highlights { get; } = [];
+
+        public ObservableCollection<TableCellViewModel> TableCells { get; } = [];
 
         public bool HasDocument => ActiveDocument is not null;
 
@@ -7876,6 +7949,8 @@ namespace MiniZotero.ViewModels
         public event Action<HighlightItem>? HighlightSelected;
 
         public event Action? HighlightsChanged;
+
+        public event Action<int, int>? TableInsertRequested;
 
         public void OpenDocument(DocumentItem document)
         {
@@ -8032,6 +8107,37 @@ namespace MiniZotero.ViewModels
             var result = _highlightService.DeleteHighlight(ActiveDocument.Id, highlight.Id);
             StatusMessage = result.Message;
             LoadHighlights(ActiveDocument.Id);
+        }
+
+        [RelayCommand]
+        private void HoverTableCell(TableCellViewModel? cell)
+        {
+            if (cell is null) return;
+
+            foreach (var c in TableCells)
+            {
+                c.IsSelected = c.Row <= cell.Row && c.Column <= cell.Column;
+            }
+
+            TableSelectorText = $"{cell.Row + 1} x {cell.Column + 1} Table";
+        }
+
+        [RelayCommand]
+        private void ResetTableSelection()
+        {
+            foreach (var c in TableCells)
+            {
+                c.IsSelected = false;
+            }
+            TableSelectorText = "Insert Table";
+        }
+
+        [RelayCommand]
+        private void InsertTable(TableCellViewModel? cell)
+        {
+            if (cell is null) return;
+
+            TableInsertRequested?.Invoke(cell.Row + 1, cell.Column + 1);
         }
 
         partial void OnNoteTextChanged(string value)
@@ -8748,6 +8854,8 @@ namespace MiniZotero.ViewModels
 
         public bool IsStarred => Document?.IsStarred == true;
 
+        public string StarIcon => IsStarred ? "\uE735" : "\uE734";
+
         public bool IsStarButtonVisible => IsDocument && Document?.IsDeleted != true;
 
         public static DocumentExplorerItem Folder(string name, int count, bool isExpanded)
@@ -9354,6 +9462,8 @@ namespace MiniZotero.ViewModels
             StatusMessage = $"Deleted collection {collection.Name}.";
         }
 
+        public event Action<DocumentItem>? OpenDocumentRequested;
+
         [RelayCommand]
         private void AddSelectedDocumentToCollection()
         {
@@ -9366,6 +9476,16 @@ namespace MiniZotero.ViewModels
             SaveCollections();
             ApplyDocumentFilter();
             StatusMessage = $"Added to {SelectedCollection.Name}.";
+        }
+
+        [RelayCommand]
+        private void RequestOpenDocument(DocumentItem? document)
+        {
+            if (document is null || document.IsDeleted)
+            {
+                return;
+            }
+            OpenDocumentRequested?.Invoke(document);
         }
 
         [RelayCommand]
@@ -9617,6 +9737,30 @@ namespace MiniZotero.ViewModels
 }
 ``
 
+## MiniZotero/ViewModels/TableCellViewModel.cs
+
+``csharp
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace MiniZotero.ViewModels
+{
+    public partial class TableCellViewModel : ObservableObject
+    {
+        public int Row { get; }
+        public int Column { get; }
+
+        [ObservableProperty]
+        private bool _isSelected;
+
+        public TableCellViewModel(int row, int column)
+        {
+            Row = row;
+            Column = column;
+        }
+    }
+}
+``
+
 ## MiniZotero/ViewModels/TabWorkspaceViewModel.cs
 
 ``csharp
@@ -9658,6 +9802,8 @@ namespace MiniZotero.ViewModels
         [NotifyPropertyChangedFor(nameof(IsEmptyViewVisible))]
         [NotifyPropertyChangedFor(nameof(ActiveDocument))]
         [NotifyPropertyChangedFor(nameof(ActivePdfViewer))]
+        [NotifyPropertyChangedFor(nameof(ActiveDocumentIsStarred))]
+        [NotifyPropertyChangedFor(nameof(ActiveDocumentStarIcon))]
         private DocumentTabViewModel? _activeTab;
 
         public ObservableCollection<DocumentTabViewModel> OpenTabs { get; } = new();
@@ -9668,7 +9814,13 @@ namespace MiniZotero.ViewModels
 
         public bool IsEmptyViewVisible => ActiveTab is null;
 
+        public bool ActiveDocumentIsStarred => ActiveDocument?.IsStarred == true;
+
+        public string ActiveDocumentStarIcon => ActiveDocumentIsStarred ? "\uE735" : "\uE734";
+
         public event Action<string, int, System.Collections.Generic.IReadOnlyList<HighlightRect>>? HighlightCreated;
+        
+        public event Action<DocumentItem>? ToggleStarRequested;
 
         public void OpenDocument(DocumentItem document)
         {
@@ -9723,6 +9875,17 @@ namespace MiniZotero.ViewModels
         }
 
         [RelayCommand]
+        private void ToggleStar()
+        {
+            if (ActiveDocument is not null)
+            {
+                ToggleStarRequested?.Invoke(ActiveDocument);
+                OnPropertyChanged(nameof(ActiveDocumentIsStarred));
+                OnPropertyChanged(nameof(ActiveDocumentStarIcon));
+            }
+        }
+
+        [RelayCommand]
         private void CloseDocumentTab(DocumentTabViewModel? tab)
         {
             CloseTab(tab);
@@ -9732,6 +9895,12 @@ namespace MiniZotero.ViewModels
         private void CloseActiveDocument()
         {
             CloseTab(ActiveTab);
+        }
+
+        [RelayCommand]
+        private void CloseAllTabs()
+        {
+            ClearAllTabs();
         }
 
         public void ClearAllTabs()
@@ -9875,6 +10044,12 @@ namespace MiniZotero.ViewModels
                                             MinWidth="210"
                                             Height="34"
                                             Margin="0,0,2,0">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Close" Command="{Binding #Root.DataContext.Workspace.CloseDocumentTabCommand}" CommandParameter="{Binding}" />
+                                                <MenuItem Header="Close All" Command="{Binding #Root.DataContext.Workspace.CloseAllTabsCommand}" />
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
                                         <Grid ColumnDefinitions="Auto,*,Auto">
                                             <Button Grid.ColumnSpan="2"
                                                     Background="Transparent"
@@ -10303,7 +10478,54 @@ namespace MiniZotero.Views
                         <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Code" Click="OnCodeClicked"/>
                         <Button Classes="FormatButton" Content="---" ToolTip.Tip="Horizontal rule" Click="OnHorizontalRuleClicked"/>
                         <Button Classes="FormatButton" Content="☐" ToolTip.Tip="Checkbox list" Click="OnCheckboxListClicked"/>
-                        <Button Classes="FormatButton" Content="&#xE80A;" FontFamily="Segoe MDL2 Assets" IsEnabled="False" ToolTip.Tip="Coming soon"/>
+                        <Button x:Name="TableButton" Classes="FormatButton" ToolTip.Tip="Table">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft" Opened="OnTableFlyoutOpened">
+                                    <StackPanel Spacing="8" Margin="4">
+                                        <TextBlock Text="{Binding TableSelectorText}" 
+                                                   HorizontalAlignment="Center" 
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"/>
+                                        <ItemsControl ItemsSource="{Binding TableCells}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="10" Rows="10"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Width="18" Height="18" Margin="1" Padding="0"
+                                                            Classes.selected="{Binding IsSelected}"
+                                                            Command="{Binding #Root.DataContext.InsertTableCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            PointerEntered="OnTableCellPointerEntered">
+                                                        <Button.Styles>
+                                                            <Style Selector="Button">
+                                                                <Setter Property="Background" Value="Transparent"/>
+                                                                <Setter Property="BorderBrush" Value="#D1D5DB"/>
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                                <Setter Property="CornerRadius" Value="2"/>
+                                                            </Style>
+                                                            <Style Selector="Button.selected">
+                                                                <Setter Property="Background" Value="#3B82F6"/>
+                                                                <Setter Property="BorderBrush" Value="#2563EB"/>
+                                                            </Style>
+                                                            <Style Selector="Button:pointerover">
+                                                                <Setter Property="Background" Value="#93C5FD"/>
+                                                            </Style>
+                                                        </Button.Styles>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <TextBlock Text="&#xE80A;" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center"/>
+                                <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
 
@@ -10439,6 +10661,7 @@ namespace MiniZotero.Views
                                                         HorizontalAlignment="Stretch"
                                                         HorizontalContentAlignment="Stretch">
                                                     <TextBlock Text="{Binding Text}"
+                                                               Foreground="Black"
                                                                TextWrapping="Wrap"
                                                                MaxLines="4"
                                                                FontSize="{Binding #Root.DataContext.PreviewFontSize}"/>
@@ -10495,6 +10718,54 @@ namespace MiniZotero.Views
         public NotePreviewPanelView()
         {
             InitializeComponent();
+            DataContextChanged += OnDataContextChanged;
+        }
+
+        private void OnDataContextChanged(object? sender, EventArgs e)
+        {
+            if (DataContext is NotePreviewPanelViewModel viewModel)
+            {
+                viewModel.TableInsertRequested -= OnTableInsertRequested;
+                viewModel.TableInsertRequested += OnTableInsertRequested;
+            }
+        }
+
+        private void OnTableInsertRequested(int rows, int cols)
+        {
+            TableButton.Flyout?.Hide();
+
+            if (DataContext is not NotePreviewPanelViewModel viewModel ||
+                viewModel.ActiveDocument is null)
+            {
+                return;
+            }
+
+            var selectionStart = Math.Min(NoteTextBox.SelectionStart, NoteTextBox.SelectionEnd);
+            var selectionEnd = Math.Max(NoteTextBox.SelectionStart, NoteTextBox.SelectionEnd);
+            var selectionLength = selectionEnd - selectionStart;
+            
+            var result = TextBoxMarkdownFormatter.ApplyTable(NoteTextBox.Text ?? string.Empty, selectionStart, selectionLength, rows, cols);
+
+            NoteTextBox.Text = result.Text;
+            NoteTextBox.SelectionStart = result.SelectionStart;
+            NoteTextBox.SelectionEnd = result.SelectionStart + result.SelectionLength;
+            NoteTextBox.Focus();
+        }
+
+        private void OnTableFlyoutOpened(object? sender, EventArgs e)
+        {
+            if (DataContext is NotePreviewPanelViewModel viewModel)
+            {
+                viewModel.ResetTableSelectionCommand.Execute(null);
+            }
+        }
+
+        private void OnTableCellPointerEntered(object? sender, Avalonia.Input.PointerEventArgs e)
+        {
+            if (sender is Control control && control.DataContext is TableCellViewModel cell && DataContext is NotePreviewPanelViewModel viewModel)
+            {
+                viewModel.HoverTableCellCommand.Execute(cell);
+            }
         }
 
         private async void OnExportMarkdownClicked(object? sender, RoutedEventArgs e)
@@ -11207,7 +11478,7 @@ namespace MiniZotero.Views
                                  SelectedItem="{Binding SelectedExplorerItem, Mode=TwoWay}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:DocumentExplorerItem">
-                                    <Border Padding="2,0">
+                                    <Border Padding="2,0" DoubleTapped="OnDocumentDoubleTapped" Background="Transparent">
                                         <Grid Height="24" ColumnDefinitions="Auto,Auto,*,Auto">
                                             <Button Classes="SidebarIconButton"
                                                     Content="{Binding ChevronIcon}"
@@ -11269,7 +11540,7 @@ namespace MiniZotero.Views
 
                                             <Button Grid.Column="3"
                                                     Classes="SidebarIconButton"
-                                                    Content="&#xE734;"
+                                                    Content="{Binding StarIcon}"
                                                     Width="24"
                                                     Height="24"
                                                     Foreground="{Binding IsStarred, Converter={StaticResource StarredBrushConverter}}"
@@ -11500,6 +11771,15 @@ namespace MiniZotero.Views
         {
             InitializeComponent();
         }
+
+        private void OnDocumentDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
+        {
+            if (sender is Avalonia.Controls.Control { DataContext: ViewModels.DocumentExplorerItem { IsDocument: true } item } &&
+                DataContext is ViewModels.SidebarViewModel vm)
+            {
+                vm.RequestOpenDocumentCommand.Execute(item.Document);
+            }
+        }
     }
 }
 ``
@@ -11511,9 +11791,14 @@ namespace MiniZotero.Views
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="using:MiniZotero.Views"
              xmlns:vm="using:MiniZotero.ViewModels"
+             xmlns:converters="using:MiniZotero.Converters"
              x:Class="MiniZotero.Views.TabWorkspaceView"
              x:Name="Root"
              x:DataType="vm:TabWorkspaceViewModel">
+
+    <UserControl.Resources>
+        <converters:StarredBrushConverter x:Key="StarredBrushConverter"/>
+    </UserControl.Resources>
 
     <UserControl.Styles>
         <Style Selector="Button.ToolButton">
@@ -11640,7 +11925,11 @@ namespace MiniZotero.Views
                             Content="&#xE8A7;"
                             Command="{Binding ActiveTab.PdfViewer.FitPageCommand}"
                             ToolTip.Tip="Fit page"/>
-                    <Button Classes="ToolButton" Content="&#xE734;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
+                    <Button Classes="ToolButton" 
+                            Content="{Binding ActiveDocumentStarIcon}"
+                            Foreground="{Binding ActiveDocumentIsStarred, Converter={StaticResource StarredBrushConverter}}"
+                            Command="{Binding ToggleStarCommand}"
+                            ToolTip.Tip="Toggle star"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">

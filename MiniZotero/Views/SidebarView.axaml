@@ -297,7 +297,7 @@
                                  SelectedItem="{Binding SelectedExplorerItem, Mode=TwoWay}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:DocumentExplorerItem">
-                                    <Border Padding="2,0">
+                                    <Border Padding="2,0" DoubleTapped="OnDocumentDoubleTapped" Background="Transparent">
                                         <Grid Height="24" ColumnDefinitions="Auto,Auto,*,Auto">
                                             <Button Classes="SidebarIconButton"
                                                     Content="{Binding ChevronIcon}"
@@ -359,7 +359,7 @@
 
                                             <Button Grid.Column="3"
                                                     Classes="SidebarIconButton"
-                                                    Content="&#xE734;"
+                                                    Content="{Binding StarIcon}"
                                                     Width="24"
                                                     Height="24"
                                                     Foreground="{Binding IsStarred, Converter={StaticResource StarredBrushConverter}}"
