@@ -94,7 +94,19 @@ namespace MiniZotero.ViewModels
 
         public string PageDisplayText => $"{CurrentPage} / {(TotalPages > 0 ? TotalPages.ToString() : "--")}";
 
-        public string ZoomDisplayText => $"{ZoomPercent}%";
+        public string ZoomDisplayText
+        {
+            get => $"{ZoomPercent}%";
+            set
+            {
+                if (int.TryParse(value.Replace("%", "").Trim(), out var percent))
+                {
+                    ZoomPercent = ClampZoomPercent(percent);
+                    ScriptRequested?.Invoke($"window.miniZoteroPdf?.setZoom?.({ZoomPercent});");
+                }
+                OnPropertyChanged(nameof(ZoomDisplayText));
+            }
+        }
 
         public string SearchResultText => SearchResultCount > 0
             ? $"{CurrentSearchResultIndex + 1} / {SearchResultCount}"
