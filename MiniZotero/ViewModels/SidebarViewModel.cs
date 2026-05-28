@@ -430,10 +430,9 @@ namespace MiniZotero.ViewModels
 
             WatchFolderPath = folderPath;
 
-            _settingsRepository.SaveSettings(new AppSettings
-            {
-                WatchFolderPath = folderPath
-            });
+            var settings = _settingsRepository.LoadSettings();
+            settings.WatchFolderPath = folderPath;
+            _settingsRepository.SaveSettings(settings);
 
             _watchFolderService.Start(folderPath);
             StatusMessage = $"Watching {Path.GetFileName(folderPath)}.";
@@ -777,7 +776,7 @@ namespace MiniZotero.ViewModels
             RefreshAfterDocumentChange(rebuildTags);
         }
 
-        private void RefreshAfterDocumentChange(bool rebuildTags = true)
+        public void RefreshAfterDocumentChange(bool rebuildTags = true)
         {
             if (rebuildTags)
             {

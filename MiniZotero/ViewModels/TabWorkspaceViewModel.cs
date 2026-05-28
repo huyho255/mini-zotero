@@ -40,6 +40,19 @@ namespace MiniZotero.ViewModels
         [NotifyPropertyChangedFor(nameof(ActiveDocumentStarIcon))]
         private DocumentTabViewModel? _activeTab;
 
+        partial void OnActiveTabChanged(DocumentTabViewModel? oldValue, DocumentTabViewModel? newValue)
+        {
+            if (oldValue is not null)
+            {
+                oldValue.IsActive = false;
+            }
+
+            if (newValue is not null)
+            {
+                newValue.IsActive = true;
+            }
+        }
+
         public ObservableCollection<DocumentTabViewModel> OpenTabs { get; } = new();
 
         public DocumentItem? ActiveDocument => ActiveTab?.Document;
@@ -106,6 +119,23 @@ namespace MiniZotero.ViewModels
             {
                 ActiveTab = tab;
             }
+        }
+
+        public void MoveTab(DocumentTabViewModel tab, int newIndex)
+        {
+            if (tab is null || newIndex < 0 || newIndex >= OpenTabs.Count)
+            {
+                return;
+            }
+
+            var oldIndex = OpenTabs.IndexOf(tab);
+            if (oldIndex < 0 || oldIndex == newIndex)
+            {
+                return;
+            }
+
+            OpenTabs.Move(oldIndex, newIndex);
+            ActiveTab = tab;
         }
 
         [RelayCommand]

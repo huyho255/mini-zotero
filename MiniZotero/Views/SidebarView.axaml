@@ -72,6 +72,16 @@
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
+        <Style Selector="ListBox.NavigationList ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.NavigationList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
         <Style Selector="ListBox.NavigationList ListBoxItem:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1C2633"/>
             <Setter Property="CornerRadius" Value="6"/>
@@ -94,6 +104,16 @@
             <Setter Property="Margin" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
+        <Style Selector="ListBox.DocumentList ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.DocumentList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
         <Style Selector="ListBox.DocumentList ListBoxItem:selected /template/ ContentPresenter">
             <Setter Property="Background" Value="#5D2CCB"/>
             <Setter Property="CornerRadius" Value="5"/>
@@ -115,6 +135,16 @@
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.SmartCollectionList ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.SmartCollectionList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
         </Style>
         <Style Selector="ListBox.SmartCollectionList ListBoxItem:selected /template/ ContentPresenter">
             <Setter Property="Background" Value="#5D2CCB"/>
@@ -141,6 +171,14 @@
         <Style Selector="ListBox.TagList ListBoxItem /template/ ContentPresenter">
             <Setter Property="Background" Value="#202B39"/>
             <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.TagList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.95)" />
         </Style>
         <Style Selector="ListBox.TagList ListBoxItem:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#2A3646"/>
@@ -297,7 +335,11 @@
                                  SelectedItem="{Binding SelectedExplorerItem, Mode=TwoWay}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:DocumentExplorerItem">
-                                    <Border Padding="2,0" DoubleTapped="OnDocumentDoubleTapped" Background="Transparent">
+                                    <Border Padding="2,0"
+                                            DoubleTapped="OnDocumentDoubleTapped"
+                                            PointerPressed="OnDocumentPointerPressed"
+                                            PointerMoved="OnDocumentPointerMoved"
+                                            Background="Transparent">
                                         <Grid Height="24" ColumnDefinitions="Auto,Auto,*,Auto">
                                             <Button Classes="SidebarIconButton"
                                                     Content="{Binding ChevronIcon}"

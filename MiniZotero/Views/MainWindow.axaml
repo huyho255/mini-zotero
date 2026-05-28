@@ -53,6 +53,16 @@
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
+        <Style Selector="ListBox.SearchResultsList ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.SearchResultsList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
         <Style Selector="ListBox.SearchResultsList ListBoxItem:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1C2633"/>
             <Setter Property="CornerRadius" Value="6"/>
@@ -61,9 +71,22 @@
             <Setter Property="Background" Value="#263242"/>
             <Setter Property="CornerRadius" Value="6"/>
         </Style>
+        <Style Selector="Border.drag">
+            <Setter Property="Opacity" Value="0.5"/>
+            <Setter Property="Background" Value="#E2E8F0"/>
+        </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="48,*,30" ColumnDefinitions="224,*,492">
+    <Grid RowDefinitions="48,*,30" ColumnDefinitions="224,*,492"
+          DragDrop.AllowDrop="True">
+
+        <!-- Lag-free Drag Visual Layer -->
+        <Canvas x:Name="DragVisualLayer"
+                Grid.Row="0" Grid.RowSpan="3"
+                Grid.Column="0" Grid.ColumnSpan="3"
+                IsHitTestVisible="False"
+                ZIndex="999"/>
+
         <views:SidebarView Grid.Row="0"
                            Grid.RowSpan="3"
                            Grid.Column="0"
@@ -82,13 +105,17 @@
                         Command="{Binding Sidebar.ImportPdfFilesCommand}"
                         VerticalAlignment="Center"/>
 
+                <Grid Grid.Column="1" VerticalAlignment="Bottom" Height="46">
                     <ScrollViewer x:Name="TabStripScrollViewer"
-                                  Grid.Column="1"
+                                  Background="Transparent"
                                   HorizontalScrollBarVisibility="Hidden"
                                   VerticalScrollBarVisibility="Disabled"
                                   PointerWheelChanged="OnTabStripPointerWheelChanged"
-                                  Height="46"
-                                  VerticalAlignment="Bottom">
+                                  DragDrop.AllowDrop="True"
+                                  DragDrop.Drop="OnTabStripDrop"
+                                  DragDrop.DragOver="OnTabStripDragOver"
+                                  DragDrop.DragEnter="OnTabStripDragEnter"
+                                  DragDrop.DragLeave="OnTabStripDragLeave">
                         <ItemsControl ItemsSource="{Binding Workspace.OpenTabs}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -103,41 +130,35 @@
                                             CornerRadius="7,7,0,0"
                                             MinWidth="210"
                                             Height="34"
-                                            Margin="0,0,2,0">
+                                            Margin="0,0,2,0"
+                                            PointerPressed="OnTabPointerPressed"
+                                            PointerMoved="OnTabPointerMoved"
+                                            Classes.drag="{Binding IsDragging}">
                                         <Border.ContextMenu>
                                             <ContextMenu>
                                                 <MenuItem Header="Close" Command="{Binding #Root.DataContext.Workspace.CloseDocumentTabCommand}" CommandParameter="{Binding}" />
                                                 <MenuItem Header="Close All" Command="{Binding #Root.DataContext.Workspace.CloseAllTabsCommand}" />
                                             </ContextMenu>
                                         </Border.ContextMenu>
-                                        <Grid ColumnDefinitions="Auto,*,Auto">
-                                            <Button Grid.ColumnSpan="2"
-                                                    Background="Transparent"
-                                                    BorderThickness="0"
-                                                    Padding="10,0,0,0"
-                                                    HorizontalAlignment="Stretch"
-                                                    HorizontalContentAlignment="Stretch"
-                                                    Command="{Binding #Root.DataContext.Workspace.SetActiveTabCommand}"
-                                                    CommandParameter="{Binding}">
-                                                <Grid ColumnDefinitions="Auto,*">
-                                                    <Border Width="16" Height="18" CornerRadius="3" Background="#EF4444" VerticalAlignment="Center">
-                                                        <TextBlock Text="PDF"
-                                                                   Foreground="White"
-                                                                   FontSize="7"
-                                                                   FontWeight="Bold"
-                                                                   HorizontalAlignment="Center"
-                                                                   VerticalAlignment="Center"/>
-                                                    </Border>
-                                                    <TextBlock Grid.Column="1"
-                                                               Text="{Binding Title}"
-                                                               Foreground="#172033"
-                                                               FontSize="12"
-                                                               FontWeight="SemiBold"
-                                                               Margin="8,0"
-                                                               VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </Grid>
-                                            </Button>
+                                        <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
+                                            <Grid ColumnDefinitions="Auto,*" Grid.ColumnSpan="2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                <Border Width="16" Height="18" CornerRadius="3" Background="#EF4444" VerticalAlignment="Center">
+                                                    <TextBlock Text="PDF"
+                                                               Foreground="White"
+                                                               FontSize="7"
+                                                               FontWeight="Bold"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Title}"
+                                                           Foreground="#172033"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           Margin="8,0"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
                                             <Button Grid.Column="2"
                                                     Content="&#xE711;"
                                                     FontFamily="Segoe MDL2 Assets"
@@ -155,6 +176,16 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
+
+                    <Border x:Name="TabInsertionIndicator"
+                            Width="2"
+                            Background="#3B82F6"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Stretch"
+                            Margin="0,12,0,0"
+                            IsVisible="False"
+                            IsHitTestVisible="False"/>
+                </Grid>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Border Background="#172230" CornerRadius="7" Height="30" Width="48">
@@ -191,9 +222,28 @@
             </Grid>
         </Border>
 
-        <views:TabWorkspaceView Grid.Row="1"
+        <views:TabWorkspaceView x:Name="TabWorkspace"
+                                Grid.Row="1"
                                 Grid.Column="1"
                                 DataContext="{Binding Workspace}"/>
+
+        <Border x:Name="DropZoneOverlay"
+                Grid.Row="1" Grid.Column="1"
+                Background="#1E293B"
+                BorderBrush="#3B82F6"
+                BorderThickness="2"
+                CornerRadius="8"
+                Margin="16"
+                IsVisible="False"
+                IsHitTestVisible="True"
+                DragDrop.AllowDrop="True"
+                DragDrop.DragOver="OnCenterDragOver"
+                DragDrop.Drop="OnCenterDrop">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                <TextBlock Text="&#xE8B5;" FontFamily="Segoe MDL2 Assets" FontSize="48" Foreground="#64748B" HorizontalAlignment="Center"/>
+                <TextBlock Text="Drop PDF here to open" FontSize="18" Foreground="#94A3B8" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
 
         <views:NotePreviewPanelView Grid.Row="1"
                                     Grid.Column="2"

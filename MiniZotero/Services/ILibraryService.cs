@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using MiniZotero.Models;
 
 namespace MiniZotero.Services
@@ -20,6 +21,8 @@ namespace MiniZotero.Services
         void Restore(DocumentItem document, IEnumerable<DocumentItem> documents);
 
         void DeleteForever(DocumentItem document, IList<DocumentItem> documents);
+
+        Task EmptyTrashAsync(IList<DocumentItem> documents);
 
         IEnumerable<DocumentItem> GetNavigationDocuments(IEnumerable<DocumentItem> documents, string? navigationName);
 
