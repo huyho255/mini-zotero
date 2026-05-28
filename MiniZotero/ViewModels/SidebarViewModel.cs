@@ -122,6 +122,8 @@ namespace MiniZotero.ViewModels
 
         public bool IsStarred => Document?.IsStarred == true;
 
+        public string StarIcon => IsStarred ? "\uE735" : "\uE734";
+
         public bool IsStarButtonVisible => IsDocument && Document?.IsDeleted != true;
 
         public static DocumentExplorerItem Folder(string name, int count, bool isExpanded)
