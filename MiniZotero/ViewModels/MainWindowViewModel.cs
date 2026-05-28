@@ -92,13 +92,12 @@ namespace MiniZotero.ViewModels
                 {
                     StatusMessage = Sidebar.StatusMessage;
                 }
+            };
 
-                if (e.PropertyName == nameof(SidebarViewModel.SelectedDocument) &&
-                    Sidebar.SelectedDocument is { } document)
-                {
-                    ApplyDefaultZoomForUnreadDocument(document);
-                    Workspace.OpenDocument(document);
-                }
+            Sidebar.OpenDocumentRequested += document =>
+            {
+                ApplyDefaultZoomForUnreadDocument(document);
+                Workspace.OpenDocument(document);
             };
         }
 
