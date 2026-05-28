@@ -5,13 +5,13 @@ using MiniZotero.Repositories;
 
 namespace MiniZotero.Services
 {
-    public sealed class NoteService
+    public sealed class NoteService : INoteService
     {
-        private readonly NoteRepository _noteRepository;
+        private readonly INoteRepository _noteRepository;
         private readonly MarkdownExportService _markdownExportService;
 
         public NoteService(
-            NoteRepository noteRepository,
+            INoteRepository noteRepository,
             MarkdownExportService markdownExportService)
         {
             _noteRepository = noteRepository;

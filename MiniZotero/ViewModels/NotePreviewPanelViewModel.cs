@@ -13,14 +13,19 @@ namespace MiniZotero.ViewModels
 {
     public partial class NotePreviewPanelViewModel : ViewModelBase
     {
-        private readonly NoteService _noteService;
-        private readonly HighlightService _highlightService;
+        private readonly INoteService _noteService;
+        private readonly IHighlightService _highlightService;
         private CancellationTokenSource? _saveNoteDebounce;
         private bool _isLoadingNote;
+        private const int MinimumZoomPercent = 75;
+        private const int MaximumZoomPercent = 200;
+        private const int ZoomStepPercent = 10;
+        private const double BaseNoteFontSize = 13;
+        private const double BasePreviewFontSize = 12;
 
         public NotePreviewPanelViewModel(
-            NoteService noteService,
-            HighlightService highlightService)
+            INoteService noteService,
+            IHighlightService highlightService)
         {
             _noteService = noteService;
             _highlightService = highlightService;
@@ -39,6 +44,16 @@ namespace MiniZotero.ViewModels
         [ObservableProperty]
         private string _statusMessage = "Ready";
 
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(NoteZoomDisplayText))]
+        [NotifyPropertyChangedFor(nameof(NoteEditorFontSize))]
+        private int _noteZoomPercent = 100;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(PreviewZoomDisplayText))]
+        [NotifyPropertyChangedFor(nameof(PreviewFontSize))]
+        private int _previewZoomPercent = 100;
+
         public ObservableCollection<HighlightItem> Highlights { get; } = [];
 
         public bool HasDocument => ActiveDocument is not null;
@@ -48,6 +63,14 @@ namespace MiniZotero.ViewModels
         public bool HasHighlights => Highlights.Count > 0;
 
         public bool IsHighlightEmptyViewVisible => HasDocument && !HasHighlights;
+
+        public string NoteZoomDisplayText => $"{NoteZoomPercent}%";
+
+        public string PreviewZoomDisplayText => $"{PreviewZoomPercent}%";
+
+        public double NoteEditorFontSize => BaseNoteFontSize * NoteZoomPercent / 100.0;
+
+        public double PreviewFontSize => BasePreviewFontSize * PreviewZoomPercent / 100.0;
 
         public event Action<HighlightItem>? HighlightSelected;
 
@@ -70,6 +93,28 @@ namespace MiniZotero.ViewModels
             }
 
             LoadHighlights(document.Id);
+        }
+
+        public void ClearDocument()
+        {
+            SaveActiveNoteImmediately();
+            ActiveDocument = null;
+            _isLoadingNote = true;
+
+            try
+            {
+                NoteText = string.Empty;
+            }
+            finally
+            {
+                _isLoadingNote = false;
+            }
+
+            Highlights.Clear();
+            OnPropertyChanged(nameof(HasHighlights));
+            OnPropertyChanged(nameof(IsHighlightEmptyViewVisible));
+            HighlightsChanged?.Invoke();
+            StatusMessage = "Ready";
         }
 
         public void AddHighlightFromViewer(
@@ -126,6 +171,42 @@ namespace MiniZotero.ViewModels
             OnPropertyChanged(nameof(HasHighlights));
             OnPropertyChanged(nameof(IsHighlightEmptyViewVisible));
             HighlightsChanged?.Invoke();
+        }
+
+        [RelayCommand]
+        private void ZoomInNote()
+        {
+            NoteZoomPercent = Math.Min(MaximumZoomPercent, NoteZoomPercent + ZoomStepPercent);
+        }
+
+        [RelayCommand]
+        private void ZoomOutNote()
+        {
+            NoteZoomPercent = Math.Max(MinimumZoomPercent, NoteZoomPercent - ZoomStepPercent);
+        }
+
+        [RelayCommand]
+        private void ResetNoteZoom()
+        {
+            NoteZoomPercent = 100;
+        }
+
+        [RelayCommand]
+        private void ZoomInPreview()
+        {
+            PreviewZoomPercent = Math.Min(MaximumZoomPercent, PreviewZoomPercent + ZoomStepPercent);
+        }
+
+        [RelayCommand]
+        private void ZoomOutPreview()
+        {
+            PreviewZoomPercent = Math.Max(MinimumZoomPercent, PreviewZoomPercent - ZoomStepPercent);
+        }
+
+        [RelayCommand]
+        private void ResetPreviewZoom()
+        {
+            PreviewZoomPercent = 100;
         }
 
         [RelayCommand]

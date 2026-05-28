@@ -7,7 +7,7 @@ using MiniZotero.Services;
 
 namespace MiniZotero.Repositories
 {
-    public sealed class HighlightRepository
+    public sealed class HighlightRepository : IHighlightRepository
     {
         private readonly AppStorageService _storageService;
         private readonly JsonFileStore _jsonFileStore;

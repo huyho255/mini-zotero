@@ -3,6 +3,7 @@
              xmlns:views="using:MiniZotero.Views"
              xmlns:vm="using:MiniZotero.ViewModels"
              x:Class="MiniZotero.Views.TabWorkspaceView"
+             x:Name="Root"
              x:DataType="vm:TabWorkspaceViewModel">
 
     <UserControl.Styles>
@@ -86,31 +87,31 @@
                 BorderThickness="0,0,1,1">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="7,0,10,0">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Button Classes="ToolButton" Content="&#xE72B;"/>
-                    <TextBlock Text="{Binding PdfViewer.CurrentPage}"
+                    <Button Classes="ToolButton"
+                            Content="&#xE72B;"
+                            Command="{Binding ActiveTab.PdfViewer.GoToPreviousPageCommand}"/>
+                    <TextBlock Text="{Binding ActiveTab.PdfViewer.PageDisplayText}"
                                Foreground="#172033"
                                FontWeight="SemiBold"
                                FontSize="12"
                                VerticalAlignment="Center"
-                               MinWidth="24"
+                               MinWidth="48"
                                TextAlignment="Center"/>
-                    <TextBlock Text="/"
-                               Foreground="#94A3B8"
-                               FontSize="12"
-                               VerticalAlignment="Center"/>
-                    <TextBlock Text="--"
-                               Foreground="#94A3B8"
-                               FontSize="12"
-                               VerticalAlignment="Center"/>
-                    <Button Classes="ToolButton" Content="&#xE72A;"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE72A;"
+                            Command="{Binding ActiveTab.PdfViewer.GoToNextPageCommand}"/>
 
                     <Border Width="1" Height="20" Background="#D5DDE7" Margin="4,0"/>
 
-                    <Button Classes="ToolButton" Content="&#xE710;"/>
-                    <Button Classes="ToolButton" Content="&#xE738;"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE710;"
+                            Command="{Binding ActiveTab.PdfViewer.ZoomInCommand}"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE738;"
+                            Command="{Binding ActiveTab.PdfViewer.ZoomOutCommand}"/>
                     <Border Classes="ZoomChip">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding PdfViewer.ZoomPercent, StringFormat='{}{0}%'}"
+                            <TextBlock Text="{Binding ActiveTab.PdfViewer.ZoomDisplayText}"
                                        Foreground="#334155"
                                        FontSize="12"
                                        MinWidth="35"
@@ -122,15 +123,48 @@
 
                     <Border Width="1" Height="20" Background="#D5DDE7" Margin="4,0"/>
 
-                    <Button Classes="ToolButton" Content="&#xE740;"/>
-                    <Button Classes="ToolButton" Content="&#xE8A7;"/>
-                    <Button Classes="ToolButton" Content="&#xE734;"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE740;"
+                            Command="{Binding ActiveTab.PdfViewer.FitWidthCommand}"
+                            ToolTip.Tip="Fit width"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE8A7;"
+                            Command="{Binding ActiveTab.PdfViewer.FitPageCommand}"
+                            ToolTip.Tip="Fit page"/>
+                    <Button Classes="ToolButton" Content="&#xE734;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Button Classes="ToolButton" Content="&#xE8A7;"/>
-                    <Button Classes="ToolButton" Content="&#xE8A9;"/>
-                    <Button Classes="ToolButton" Content="&#xE713;"/>
+                    <TextBox Text="{Binding ActiveTab.PdfViewer.PdfSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Width="150"
+                             Height="30"
+                             Padding="8,0"
+                             VerticalContentAlignment="Center"
+                             FontSize="12"
+                             PlaceholderText="Find in PDF"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE721;"
+                            Command="{Binding ActiveTab.PdfViewer.SearchInPdfCommand}"
+                            ToolTip.Tip="Search PDF"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE70E;"
+                            Command="{Binding ActiveTab.PdfViewer.GoToPreviousSearchResultCommand}"
+                            ToolTip.Tip="Previous result"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE70D;"
+                            Command="{Binding ActiveTab.PdfViewer.GoToNextSearchResultCommand}"
+                            ToolTip.Tip="Next result"/>
+                    <TextBlock Text="{Binding ActiveTab.PdfViewer.SearchResultText}"
+                               Foreground="#64748B"
+                               FontSize="12"
+                               MinWidth="42"
+                               TextAlignment="Center"
+                               VerticalAlignment="Center"/>
+                    <Button Classes="ToolButton"
+                            Content="&#xE711;"
+                            Command="{Binding ActiveTab.PdfViewer.ClearPdfSearchCommand}"
+                            ToolTip.Tip="Clear search"/>
+                    <Button Classes="ToolButton" Content="&#xE713;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -141,7 +175,7 @@
                 BorderBrush="#D5DDE7"
                 BorderThickness="0,0,1,0">
             <StackPanel Margin="4,10" Spacing="8">
-                <Button Classes="RailButton">
+                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE8A5;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -152,8 +186,8 @@
                     </Grid>
                 </Button>
                 <ToggleButton Classes="RailButton"
-                              IsChecked="{Binding PdfViewer.IsHandToolActive, Mode=OneWay}"
-                              Click="OnHandToolClicked">
+                              IsChecked="{Binding ActiveTab.PdfViewer.IsHandToolActive, Mode=OneWay}"
+                              Command="{Binding ActiveTab.PdfViewer.ActivateHandToolCommand}">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE7C9;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -164,8 +198,8 @@
                     </Grid>
                 </ToggleButton>
                 <ToggleButton Classes="RailButton"
-                              IsChecked="{Binding PdfViewer.IsSelectToolActive, Mode=OneWay}"
-                              Click="OnSelectToolClicked">
+                              IsChecked="{Binding ActiveTab.PdfViewer.IsSelectToolActive, Mode=OneWay}"
+                              Command="{Binding ActiveTab.PdfViewer.ActivateSelectToolCommand}">
                     <Canvas Width="20" Height="24">
                         <TextBlock Text="T"
                                    FontFamily="Segoe UI"
@@ -179,8 +213,8 @@
                     </Canvas>
                 </ToggleButton>
                 <ToggleButton Classes="RailButton"
-                              IsChecked="{Binding PdfViewer.IsHighlightToolActive, Mode=OneWay}"
-                              Click="OnHighlightToolClicked">
+                              IsChecked="{Binding ActiveTab.PdfViewer.IsHighlightToolActive, Mode=OneWay}"
+                              Command="{Binding ActiveTab.PdfViewer.ActivateHighlightToolCommand}">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE70F;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -190,7 +224,7 @@
                                    VerticalAlignment="Center"/>
                     </Grid>
                 </ToggleButton>
-                <Button Classes="RailButton">
+                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE8A7;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -200,7 +234,7 @@
                                    VerticalAlignment="Center"/>
                     </Grid>
                 </Button>
-                <Button Classes="RailButton">
+                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE712;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -215,6 +249,6 @@
 
         <views:PdfViewerView Grid.Row="1"
                              Grid.Column="1"
-                             DataContext="{Binding PdfViewer}"/>
+                             DataContext="{Binding ActiveTab.PdfViewer}"/>
     </Grid>
 </UserControl>

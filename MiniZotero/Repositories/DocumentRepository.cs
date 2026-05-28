@@ -7,7 +7,7 @@ using MiniZotero.Services;
 
 namespace MiniZotero.Repositories
 {
-    public sealed class DocumentRepository
+    public sealed class DocumentRepository : IDocumentRepository
     {
         private readonly AppStorageService _storageService;
         private readonly AutoTagService _autoTagService;
@@ -263,6 +263,12 @@ namespace MiniZotero.Repositories
                 if (document.Tags is null)
                 {
                     document.Tags = [];
+                    changed = true;
+                }
+
+                if (document.Authors is null)
+                {
+                    document.Authors = [];
                     changed = true;
                 }
 

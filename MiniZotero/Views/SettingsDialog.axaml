@@ -1,0 +1,72 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MiniZotero.ViewModels"
+        x:Class="MiniZotero.Views.SettingsDialog"
+        x:DataType="vm:SettingsDialogViewModel"
+        Width="480"
+        Height="420"
+        MinWidth="440"
+        MinHeight="380"
+        Title="Settings"
+        Background="#F8FAFC"
+        Foreground="#111827"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="*,Auto" Margin="18">
+        <StackPanel Spacing="14">
+            <TextBlock Text="Settings"
+                       FontSize="18"
+                       FontWeight="SemiBold"/>
+
+            <StackPanel Spacing="5">
+                <TextBlock Text="Watch folder" FontSize="12" Foreground="#475569"/>
+                <TextBox Text="{Binding WatchFolderPath, Mode=TwoWay}"
+                         PlaceholderText="Folder path"
+                         Height="32"/>
+            </StackPanel>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Theme" FontSize="12" Foreground="#475569"/>
+                    <ComboBox ItemsSource="{Binding ThemeModes}"
+                              SelectedItem="{Binding ThemeMode, Mode=TwoWay}"
+                              Height="32"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="5">
+                    <TextBlock Text="Default PDF zoom" FontSize="12" Foreground="#475569"/>
+                    <TextBox Text="{Binding DefaultPdfZoomPercent, Mode=TwoWay}"
+                             Height="32"/>
+                </StackPanel>
+            </Grid>
+
+            <CheckBox Content="Auto-open last document"
+                      IsChecked="{Binding AutoOpenLastDocument, Mode=TwoWay}"/>
+
+            <StackPanel Spacing="5">
+                <TextBlock Text="Storage path" FontSize="12" Foreground="#475569"/>
+                <TextBox Text="{Binding StorageRootPath}"
+                         IsReadOnly="True"
+                         Height="32"/>
+            </StackPanel>
+
+            <Button Content="Clear trash"
+                    HorizontalAlignment="Left"
+                    Command="{Binding ClearTrashCommand}"/>
+
+            <TextBlock Text="{Binding StatusMessage}"
+                       Foreground="#64748B"
+                       FontSize="12"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Content="Cancel"
+                    Command="{Binding CancelCommand}"/>
+            <Button Content="Save"
+                    Command="{Binding SaveCommand}"/>
+        </StackPanel>
+    </Grid>
+</Window>

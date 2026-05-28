@@ -4,7 +4,7 @@ using MiniZotero.Services;
 
 namespace MiniZotero.Repositories
 {
-    public sealed class NoteRepository
+    public sealed class NoteRepository : INoteRepository
     {
         private readonly AppStorageService _storageService;
 

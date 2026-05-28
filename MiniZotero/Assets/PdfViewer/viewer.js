@@ -19,12 +19,18 @@ let areaSelectionBox = null;
 let currentToolMode = "select";
 let handPanState = null;
 let storedHighlights = [];
+let searchQuery = "";
+let searchResults = [];
+let currentSearchResultIndex = -1;
+const searchTextByPage = new Map();
 
 const RENDER_QUALITY = 2;
 const MAX_OUTPUT_SCALE = 4;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
 const AREA_SELECTION_THRESHOLD = 4;
+const WHEEL_LINE_SIZE = 40;
+const WHEEL_PAGE_SIZE_RATIO = 0.85;
 
 function getQueryValue(name) {
     const params = new URLSearchParams(window.location.search);
@@ -41,10 +47,44 @@ function clampScale(scale) {
     return Math.min(Math.max(scale, MIN_ZOOM), MAX_ZOOM);
 }
 
+function getWheelDeltaPixels(event) {
+    let multiplier = 1;
+
+    if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+        multiplier = WHEEL_LINE_SIZE;
+    } else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+        multiplier = Math.max(viewer.clientHeight * WHEEL_PAGE_SIZE_RATIO, 1);
+    }
+
+    return {
+        x: event.deltaX * multiplier,
+        y: event.deltaY * multiplier
+    };
+}
+
+function scrollViewerWithWheel(event) {
+    const delta = getWheelDeltaPixels(event);
+    const scrollLeft = event.shiftKey && delta.x === 0
+        ? delta.y
+        : delta.x;
+    const scrollTop = event.shiftKey && delta.x === 0
+        ? 0
+        : delta.y;
+
+    if (scrollLeft === 0 && scrollTop === 0) {
+        return false;
+    }
+
+    viewer.scrollLeft += scrollLeft;
+    viewer.scrollTop += scrollTop;
+    return true;
+}
+
 function sendToCSharp(type, data = {}) {
     const payload = JSON.stringify({
         type,
         pageNumber: data.pageNumber || currentPage,
+        totalPages: pdfDocument?.numPages || data.totalPages || 0,
         zoomPercent: Math.round(currentScale * 100),
         ...data
     });
@@ -212,6 +252,7 @@ async function createPagePlaceholder(pageNumber) {
         canvas: null,
         textLayer: null,
         highlightLayer: null,
+        searchLayer: null,
         selectionOverlay: null,
         textItems: [],
         selectedWordRects: [],
@@ -329,6 +370,14 @@ function createHighlightLayer(viewport) {
     return highlightLayer;
 }
 
+function createSearchLayer(viewport) {
+    const searchLayer = document.createElement("div");
+    searchLayer.className = "searchLayer";
+    searchLayer.style.width = `${Math.floor(viewport.width)}px`;
+    searchLayer.style.height = `${Math.floor(viewport.height)}px`;
+    return searchLayer;
+}
+
 async function renderPage(pageNumber, force = false) {
     const state = pageStates.get(pageNumber);
 
@@ -443,6 +492,9 @@ async function renderPageInternal(state) {
     const highlightLayer = createHighlightLayer(viewport);
     content.appendChild(highlightLayer);
 
+    const searchLayer = createSearchLayer(viewport);
+    content.appendChild(searchLayer);
+
     const selectionOverlay = document.createElement("div");
     selectionOverlay.className = "selectionOverlay";
     content.appendChild(selectionOverlay);
@@ -459,11 +511,13 @@ async function renderPageInternal(state) {
     state.canvas = canvas;
     state.textLayer = textLayer;
     state.highlightLayer = highlightLayer;
+    state.searchLayer = searchLayer;
     state.selectionOverlay = selectionOverlay;
     state.renderedScale = targetScale;
     state.isRendered = true;
 
     renderStoredHighlightsForPage(state);
+    renderSearchHighlightsForPage(state);
     applyPageVisualScale(state, visualScale);
 }
 
@@ -487,6 +541,7 @@ function unloadPage(state) {
     state.canvas = null;
     state.textLayer = null;
     state.highlightLayer = null;
+    state.searchLayer = null;
     state.selectionOverlay = null;
     state.textItems = [];
     state.selectedWordRects = [];
@@ -1424,6 +1479,153 @@ function renderAllStoredHighlights() {
     }
 }
 
+function sendSearchState() {
+    sendToCSharp("searchChanged", {
+        searchResultCount: searchResults.length,
+        currentSearchResultIndex
+    });
+}
+
+async function getSearchablePageText(pageNumber) {
+    if (searchTextByPage.has(pageNumber)) {
+        return searchTextByPage.get(pageNumber);
+    }
+
+    const page = await pdfDocument.getPage(pageNumber);
+    const textContent = await page.getTextContent({
+        includeMarkedContent: false,
+        disableNormalization: false
+    });
+    const text = textContent.items
+        .map(item => item.str ?? "")
+        .join(" ");
+
+    searchTextByPage.set(pageNumber, text);
+    return text;
+}
+
+function getSearchWordsForPage(state) {
+    if (!searchQuery || state.textItems.length === 0) {
+        return [];
+    }
+
+    const query = searchQuery.toLocaleLowerCase();
+    const queryParts = query
+        .split(/\s+/)
+        .filter(part => part.length > 0);
+
+    return state.textItems.filter(word => {
+        const text = (word.text ?? "").toLocaleLowerCase();
+
+        return text.includes(query) ||
+            queryParts.some(part => text.includes(part) || part.includes(text));
+    });
+}
+
+function renderSearchHighlightsForPage(state) {
+    if (!state.searchLayer) {
+        return;
+    }
+
+    state.searchLayer.innerHTML = "";
+
+    const words = getSearchWordsForPage(state);
+
+    if (words.length === 0) {
+        return;
+    }
+
+    const activeResult = searchResults[currentSearchResultIndex];
+    const isActivePage = activeResult?.pageNumber === state.pageNumber;
+    const fragment = document.createDocumentFragment();
+
+    for (const segment of buildHighlightSegments(words, state)) {
+        const item = document.createElement("div");
+
+        item.className = isActivePage
+            ? "searchItem active"
+            : "searchItem";
+        item.style.left = `${segment.left}px`;
+        item.style.top = `${segment.top}px`;
+        item.style.width = `${segment.width}px`;
+        item.style.height = `${segment.height}px`;
+
+        fragment.appendChild(item);
+    }
+
+    state.searchLayer.appendChild(fragment);
+}
+
+function renderAllSearchHighlights() {
+    for (const state of pageStates.values()) {
+        renderSearchHighlightsForPage(state);
+    }
+}
+
+async function goToSearchResult(index) {
+    if (searchResults.length === 0) {
+        currentSearchResultIndex = -1;
+        renderAllSearchHighlights();
+        sendSearchState();
+        return;
+    }
+
+    currentSearchResultIndex = (index + searchResults.length) % searchResults.length;
+    const result = searchResults[currentSearchResultIndex];
+
+    scrollToPage(result.pageNumber);
+    await renderVisiblePages();
+    renderAllSearchHighlights();
+    sendSearchState();
+}
+
+async function performSearchText(query) {
+    searchQuery = (query ?? "").trim();
+    searchResults = [];
+    currentSearchResultIndex = -1;
+
+    if (!searchQuery || !pdfDocument) {
+        renderAllSearchHighlights();
+        sendSearchState();
+        return;
+    }
+
+    const normalizedQuery = searchQuery.toLocaleLowerCase();
+
+    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber++) {
+        const text = await getSearchablePageText(pageNumber);
+        const normalizedText = text.toLocaleLowerCase();
+        let matchIndex = normalizedText.indexOf(normalizedQuery);
+
+        while (matchIndex >= 0) {
+            searchResults.push({
+                pageNumber,
+                index: matchIndex
+            });
+            matchIndex = normalizedText.indexOf(
+                normalizedQuery,
+                matchIndex + normalizedQuery.length
+            );
+        }
+    }
+
+    if (searchResults.length === 0) {
+        renderAllSearchHighlights();
+        sendSearchState();
+        return;
+    }
+
+    await goToSearchResult(0);
+}
+
+function clearSearch() {
+    searchQuery = "";
+    searchResults = [];
+    currentSearchResultIndex = -1;
+    renderAllSearchHighlights();
+    sendSearchState();
+}
+
 function setStoredHighlights(highlights) {
     storedHighlights = Array.isArray(highlights)
         ? highlights
@@ -1532,8 +1734,34 @@ async function finishZoom(finalScale, zoomAnchor = null) {
     restoreZoomAnchor(zoomAnchor ?? getZoomAnchor());
     updateCurrentPageFromScroll();
     sendToCSharp("zoomChanged", {
-        pageNumber: currentPage
+        pageNumber: currentPage,
+        totalPages: pdfDocument?.numPages || 0
     });
+}
+
+function getFitScale(mode) {
+    const state = pageStates.get(currentPage) ?? pageStates.values().next().value;
+
+    if (!state || !state.baseWidth || !state.baseHeight) {
+        return currentScale;
+    }
+
+    const availableWidth = Math.max(viewer.clientWidth - 32, 1);
+    const availableHeight = Math.max(viewer.clientHeight - 48, 1);
+    const widthScale = availableWidth / state.baseWidth;
+    const heightScale = availableHeight / state.baseHeight;
+
+    return mode === "page"
+        ? clampScale(Math.min(widthScale, heightScale))
+        : clampScale(widthScale);
+}
+
+async function fitTo(mode) {
+    clearCustomSelection();
+    window.getSelection()?.removeAllRanges();
+
+    const anchor = getZoomAnchor();
+    await finishZoom(getFitScale(mode), anchor);
 }
 
 window.miniZoteroPdf = {
@@ -1552,6 +1780,30 @@ window.miniZoteroPdf = {
 
     setZoom(percent) {
         scheduleZoom(percent / 100);
+    },
+
+    fitWidth() {
+        fitTo("width");
+    },
+
+    fitPage() {
+        fitTo("page");
+    },
+
+    searchText(query) {
+        performSearchText(query);
+    },
+
+    goToNextSearchResult() {
+        goToSearchResult(currentSearchResultIndex + 1);
+    },
+
+    goToPreviousSearchResult() {
+        goToSearchResult(currentSearchResultIndex - 1);
+    },
+
+    clearSearch() {
+        clearSearch();
     },
 
     setToolMode(toolMode) {
@@ -1608,7 +1860,10 @@ async function boot() {
             scrollToPage(currentPage, false);
             await renderVisiblePages(true);
             statusBar.textContent = `Page ${currentPage} / ${pdfDocument.numPages}`;
-            sendToCSharp("loaded", { pageNumber: currentPage });
+            sendToCSharp("loaded", {
+                pageNumber: currentPage,
+                totalPages: pdfDocument.numPages
+            });
         }, 150);
     } catch (error) {
         statusBar.textContent = "Failed to load PDF";
@@ -1771,6 +2026,10 @@ viewer.addEventListener("pointercancel", event => {
 
 viewer.addEventListener("wheel", event => {
     if (!event.ctrlKey) {
+        if (scrollViewerWithWheel(event)) {
+            event.preventDefault();
+        }
+
         return;
     }
 

@@ -54,5 +54,17 @@ namespace MiniZotero.Models
         public DateTimeOffset? DeletedAt { get; set; }
 
         public List<string> Tags { get; set; } = [];
+
+        public List<string> Authors { get; set; } = [];
+
+        public int? Year { get; set; }
+
+        public string? Doi { get; set; }
+
+        public string? JournalOrPublisher { get; set; }
+
+        public string? Abstract { get; set; }
+
+        public string? DocumentType { get; set; }
     }
 }

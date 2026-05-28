@@ -1,23 +1,32 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using MiniZotero.Models;
 using MiniZotero.Repositories;
 
 namespace MiniZotero.Services
 {
-    public sealed class LibraryService
+    public sealed class LibraryService : ILibraryService
     {
-        private readonly DocumentRepository _documentRepository;
-        private readonly NoteService _noteService;
+        private readonly IDocumentRepository _documentRepository;
+        private readonly IDocumentImportService _documentImportService;
+        private readonly INoteService _noteService;
 
         public LibraryService(
-            DocumentRepository documentRepository,
-            NoteService noteService)
+            IDocumentRepository documentRepository,
+            INoteService noteService)
+            : this(documentRepository, noteService, new DocumentImportService(documentRepository))
+        {
+        }
+
+        public LibraryService(
+            IDocumentRepository documentRepository,
+            INoteService noteService,
+            IDocumentImportService documentImportService)
         {
             _documentRepository = documentRepository;
             _noteService = noteService;
+            _documentImportService = documentImportService;
         }
 
         public IReadOnlyList<DocumentItem> LoadDocuments()
@@ -29,51 +38,7 @@ namespace MiniZotero.Services
             string filePath,
             IList<DocumentItem> documents)
         {
-            if (string.IsNullOrWhiteSpace(filePath))
-            {
-                return OperationResult<ImportDocumentResult>.Failure("Choose a PDF file to import.");
-            }
-
-            try
-            {
-                var document = _documentRepository.ImportDocument(filePath, documents);
-                var existingDocument = documents.FirstOrDefault(existingDocument =>
-                    existingDocument.Id == document.Id);
-                var status = ImportDocumentStatus.Imported;
-
-                if (existingDocument is null)
-                {
-                    documents.Add(document);
-                }
-                else if (existingDocument.IsDeleted)
-                {
-                    existingDocument.IsDeleted = false;
-                    existingDocument.DeletedAt = null;
-                    status = ImportDocumentStatus.RestoredFromTrash;
-                }
-                else
-                {
-                    status = ImportDocumentStatus.SkippedDuplicate;
-                }
-
-                SaveDocuments(documents);
-
-                return OperationResult<ImportDocumentResult>.Success(
-                    new ImportDocumentResult(document, status),
-                    GetImportMessage(status, document.Title));
-            }
-            catch (FileNotFoundException)
-            {
-                return OperationResult<ImportDocumentResult>.Failure("The selected PDF file no longer exists.");
-            }
-            catch (IOException)
-            {
-                return OperationResult<ImportDocumentResult>.Failure("Could not import the PDF file.");
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return OperationResult<ImportDocumentResult>.Failure("MiniZotero does not have permission to import this PDF.");
-            }
+            return _documentImportService.ImportDocument(filePath, documents);
         }
 
         public void SaveDocuments(IEnumerable<DocumentItem> documents)
@@ -185,6 +150,12 @@ namespace MiniZotero.Services
                    Contains(document.FilePath, keyword) ||
                    Contains(document.OriginalFilePath, keyword) ||
                    document.Tags.Any(tag => Contains(tag, keyword)) ||
+                   document.Authors.Any(author => Contains(author, keyword)) ||
+                   Contains(document.Year?.ToString(), keyword) ||
+                   Contains(document.Doi, keyword) ||
+                   Contains(document.JournalOrPublisher, keyword) ||
+                   Contains(document.Abstract, keyword) ||
+                   Contains(document.DocumentType, keyword) ||
                    Contains(_noteService.LoadNote(document.Id), keyword);
         }
 
@@ -192,19 +163,6 @@ namespace MiniZotero.Services
         {
             return !string.IsNullOrWhiteSpace(value) &&
                    value.Contains(keyword, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static string GetImportMessage(
-            ImportDocumentStatus status,
-            string title)
-        {
-            return status switch
-            {
-                ImportDocumentStatus.Imported => $"Imported {title}.",
-                ImportDocumentStatus.RestoredFromTrash => $"Restored {title}.",
-                ImportDocumentStatus.SkippedDuplicate => $"{title} is already in the library.",
-                _ => "Import finished."
-            };
         }
     }
 }
