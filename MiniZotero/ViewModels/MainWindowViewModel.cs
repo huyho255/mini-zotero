@@ -14,12 +14,16 @@ namespace MiniZotero.ViewModels
             var highlightRepository = new HighlightRepository(storageService);
             var settingsRepository = new AppSettingsRepository(storageService);
             var watchFolderService = new WatchFolderService();
+            var markdownExportService = new MarkdownExportService();
 
             Sidebar = new SidebarViewModel(
                 documentRepository,
                 settingsRepository,
                 watchFolderService);
-            Notes = new NotePreviewPanelViewModel(noteRepository, highlightRepository);
+            Notes = new NotePreviewPanelViewModel(
+                noteRepository,
+                highlightRepository,
+                markdownExportService);
             Workspace = new TabWorkspaceViewModel(document =>
                 documentRepository.SaveDocuments(Sidebar.Documents));
 

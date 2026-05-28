@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MiniZotero.Models;
 using MiniZotero.Repositories;
+using MiniZotero.Services;
 
 namespace MiniZotero.ViewModels
 {
@@ -13,14 +14,17 @@ namespace MiniZotero.ViewModels
     {
         private readonly NoteRepository _noteRepository;
         private readonly HighlightRepository _highlightRepository;
+        private readonly MarkdownExportService _markdownExportService;
         private bool _isLoadingNote;
 
         public NotePreviewPanelViewModel(
             NoteRepository noteRepository,
-            HighlightRepository highlightRepository)
+            HighlightRepository highlightRepository,
+            MarkdownExportService markdownExportService)
         {
             _noteRepository = noteRepository;
             _highlightRepository = highlightRepository;
+            _markdownExportService = markdownExportService;
         }
 
         [ObservableProperty]
@@ -86,6 +90,20 @@ namespace MiniZotero.ViewModels
 
             _highlightRepository.AddHighlight(highlight);
             LoadHighlights(ActiveDocument.Id);
+        }
+
+        public void ExportActiveDocumentToMarkdown(string outputPath)
+        {
+            if (ActiveDocument is null)
+            {
+                return;
+            }
+
+            _markdownExportService.ExportDocumentNotes(
+                ActiveDocument,
+                NoteText,
+                Highlights,
+                outputPath);
         }
 
         private void LoadHighlights(string documentId)
