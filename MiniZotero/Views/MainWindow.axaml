@@ -16,6 +16,7 @@
         x:Name="Root"
         x:DataType="vm:MainWindowViewModel"
         Title="MiniZotero"
+        Icon="avares://MiniZotero/Assets/M_logo_cropped.ico"
         Background="#0B1118"
         Foreground="#E7EDF6"
         FontFamily="Segoe UI">
@@ -87,6 +88,20 @@
         </Style>
         <Style Selector="GridSplitter.Vertical:pointerover /template/ Border#SplitterLine">
             <Setter Property="Background" Value="#3B82F6"/>
+        </Style>
+
+        <!-- Windows 10 style context menu -->
+        <Style Selector="ContextMenu">
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#303A46"/>
+        </Style>
+        <Style Selector="MenuItem">
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="MinHeight" Value="22"/>
         </Style>
     </Window.Styles>
 
@@ -210,13 +225,6 @@
                 </Grid>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Border Background="#172230" CornerRadius="7" Height="30" Width="48">
-                        <Grid ColumnDefinitions="*,Auto" Margin="8,0">
-                            <TextBlock Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets" Foreground="#AEB9C8" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#8795A8" FontSize="9" VerticalAlignment="Center"/>
-                        </Grid>
-                    </Border>
-
                     <Border Background="#172230" CornerRadius="7" Height="30" Width="260" Padding="10,0">
                         <Grid ColumnDefinitions="Auto,*">
                             <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" Foreground="#8D9AAB" FontSize="13" VerticalAlignment="Center"/>
@@ -234,8 +242,6 @@
                         </Grid>
                     </Border>
 
-                    <Button Classes="IconButton" Content="&#xE72D;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
-                    <Button Classes="IconButton" Content="&#xE712;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
                     <Button Classes="IconButton"
                             Content="&#xE713;"
                             Command="{Binding OpenSettingsCommand}"
@@ -367,9 +373,12 @@
                     <Ellipse Width="8" Height="8" Stroke="#22C55E" StrokeThickness="1.5"/>
                 </StackPanel>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" Foreground="#8D9AAB" FontSize="13"/>
-                    <TextBlock Text="&#xE897;" FontFamily="Segoe MDL2 Assets" Foreground="#8D9AAB" FontSize="13"/>
-                    <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Foreground="#8D9AAB" FontSize="13"/>
+                    <Button Classes="IconButton" 
+                            Content="&#xE946;" 
+                            Command="{Binding ShowDocumentInfoCommand}"
+                            ToolTip.Tip="PDF Info" 
+                            Foreground="#8D9AAB" 
+                            FontSize="13"/>
                 </StackPanel>
             </Grid>
         </Border>

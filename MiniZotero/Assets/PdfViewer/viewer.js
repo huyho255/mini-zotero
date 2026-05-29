@@ -1971,6 +1971,15 @@ window.miniZoteroPdf = {
         setToolMode(toolMode);
     },
 
+    setTwoPageLayout(enabled) {
+        if (enabled) {
+            viewer.classList.add("viewerTwoPage");
+        } else {
+            viewer.classList.remove("viewerTwoPage");
+        }
+        renderVisiblePages();
+    },
+
     setHighlights(highlights) {
         setStoredHighlights(highlights);
     },

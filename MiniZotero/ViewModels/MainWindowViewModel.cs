@@ -18,6 +18,7 @@ namespace MiniZotero.ViewModels
         private string _statusMessage = "Ready";
 
         public event Action<SettingsDialogViewModel>? OpenSettingsRequested;
+        public event Action<DocumentInfoDialogViewModel>? OpenDocumentInfoRequested;
 
         public MainWindowViewModel()
             : this(new ApplicationServices())
@@ -139,6 +140,26 @@ namespace MiniZotero.ViewModels
                 _services.SettingsRepository,
                 ApplySettings,
                 ClearTrash));
+        }
+
+        [RelayCommand]
+        private void ShowDocumentInfo()
+        {
+            var document = Workspace.ActiveTab?.Document;
+            if (document == null)
+            {
+                StatusMessage = "No document open.";
+                return;
+            }
+
+            var vm = new DocumentInfoDialogViewModel(document, SaveDocumentInfo);
+            OpenDocumentInfoRequested?.Invoke(vm);
+        }
+
+        private void SaveDocumentInfo(DocumentItem document)
+        {
+            _services.LibraryService.SaveDocuments(Sidebar.Documents);
+            StatusMessage = "Document info updated.";
         }
 
         private void ApplySettings(AppSettings settings)

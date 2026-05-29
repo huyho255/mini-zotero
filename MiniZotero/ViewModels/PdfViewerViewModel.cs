@@ -74,6 +74,9 @@ namespace MiniZotero.ViewModels
         private string _emptyMessage = "Import a PDF file from the sidebar.";
 
         [ObservableProperty]
+        private bool _isTwoPageLayout = false;
+
+        [ObservableProperty]
         private string _pdfSearchText = string.Empty;
 
         [ObservableProperty]
@@ -278,6 +281,14 @@ namespace MiniZotero.ViewModels
         {
             ToolMode = "highlight";
             RequestSetToolMode("highlight");
+        }
+
+        [RelayCommand]
+        private void ToggleTwoPageLayout()
+        {
+            IsTwoPageLayout = !IsTwoPageLayout;
+            var flagJson = IsTwoPageLayout.ToString().ToLowerInvariant();
+            ScriptRequested?.Invoke($"window.miniZoteroPdf?.setTwoPageLayout?.({flagJson});");
         }
 
         [RelayCommand]

@@ -57,6 +57,17 @@ body {
     user-select: none;
 }
 
+#viewer.viewerTwoPage {
+    text-align: center;
+    padding: 24px 12px;
+}
+
+#viewer.viewerTwoPage .page {
+    display: inline-block;
+    margin: 0 11px 22px 11px;
+    vertical-align: top;
+}
+
 .page {
     position: relative;
     display: block;

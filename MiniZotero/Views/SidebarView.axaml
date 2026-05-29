@@ -199,18 +199,12 @@
             BorderThickness="0,0,1,0">
         <Grid RowDefinitions="48,*,Auto" Margin="12,0,12,10">
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-                <Border Width="22" Height="22" CornerRadius="5" Background="#745CFF" VerticalAlignment="Center">
-                    <TextBlock Text="M"
-                               Foreground="White"
-                               FontSize="13"
-                               FontWeight="Bold"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"/>
-                </Border>
+                <Image Width="26" Height="26" Source="avares://MiniZotero/Assets/M_logo_cropped.png" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1"
                            Text="MiniZotero"
                            Foreground="#F2F6FC"
                            FontWeight="SemiBold"
+                           FontSize="16"
                            Margin="8,0,0,0"
                            VerticalAlignment="Center"/>
                 <Button Grid.Column="2"
@@ -340,6 +334,55 @@
                                             PointerPressed="OnDocumentPointerPressed"
                                             PointerMoved="OnDocumentPointerMoved"
                                             Background="Transparent">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Open" Command="{Binding #Root.DataContext.RequestOpenDocumentCommand}" CommandParameter="{Binding Document}" IsVisible="{Binding !IsTrash}">
+                                                    <MenuItem.Icon>
+                                                        <TextBlock Text="&#xE8A7;" FontFamily="Segoe MDL2 Assets"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Star / Unstar" Command="{Binding #Root.DataContext.ToggleStarCommand}" CommandParameter="{Binding Document}" IsVisible="{Binding !IsTrash}">
+                                                    <MenuItem.Icon>
+                                                        <TextBlock Text="&#xE734;" FontFamily="Segoe MDL2 Assets"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <Separator IsVisible="{Binding !IsTrash}"/>
+                                                <MenuItem Header="Add to Collection" ItemsSource="{Binding #Root.DataContext.Collections}" IsVisible="{Binding !IsTrash}">
+                                                    <MenuItem.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <MenuItem Header="{Binding Name}" Command="{Binding #Root.DataContext.AddSelectedDocumentToCollectionCommand}" CommandParameter="{Binding}"/>
+                                                        </DataTemplate>
+                                                    </MenuItem.ItemTemplate>
+                                                </MenuItem>
+                                                <MenuItem Header="Remove from Collection" Command="{Binding #Root.DataContext.RemoveSelectedDocumentFromCollectionCommand}" CommandParameter="{Binding Document}" IsVisible="{Binding #Root.DataContext.HasSelectedCollection}">
+                                                    <MenuItem.Icon>
+                                                        <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <Separator IsVisible="{Binding !IsTrash}"/>
+                                                <MenuItem Header="Move to Trash" Command="{Binding #Root.DataContext.MoveSelectedDocumentToTrashCommand}" CommandParameter="{Binding Document}" IsVisible="{Binding IsTrashActionVisible}">
+                                                    <MenuItem.Icon>
+                                                        <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Foreground="#EF4444"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Remove Folder" Command="{Binding #Root.DataContext.RemoveFolderCommand}" CommandParameter="{Binding}" IsVisible="{Binding IsRemoveFolderVisible}">
+                                                    <MenuItem.Icon>
+                                                        <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Foreground="#EF4444"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                
+                                                <MenuItem Header="Restore" Command="{Binding #Root.DataContext.RestoreSelectedDocumentCommand}" CommandParameter="{Binding Document}" IsVisible="{Binding IsRestoreActionVisible}">
+                                                    <MenuItem.Icon>
+                                                        <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" Foreground="#10B981"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Restore Folder" Command="{Binding #Root.DataContext.RestoreFolderCommand}" CommandParameter="{Binding}" IsVisible="{Binding IsRestoreFolderVisible}">
+                                                    <MenuItem.Icon>
+                                                        <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" Foreground="#10B981"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
                                         <Grid Height="24" ColumnDefinitions="Auto,Auto,*,Auto">
                                             <Button Classes="SidebarIconButton"
                                                     Content="{Binding ChevronIcon}"
@@ -486,7 +529,7 @@
 
                     <Button Classes="DocumentActionButton"
                             Margin="4,8,4,0"
-                            Command="{Binding DeleteSelectedCollectionCommand}"
+                            Command="{Binding DeleteCollectionCommand}"
                             IsVisible="{Binding HasSelectedCollection}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="&#xE74D;"
@@ -585,6 +628,15 @@
 
             <StackPanel Grid.Row="2" Spacing="10">
                 <Border Background="#1C2633" CornerRadius="7" Padding="10">
+                    <Border.ContextMenu>
+                        <ContextMenu IsVisible="{Binding IsWatchFolderConfigured}">
+                            <MenuItem Header="Remove Folder" Command="{Binding ClearWatchFolderCommand}">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Foreground="#EF4444"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </ContextMenu>
+                    </Border.ContextMenu>
                     <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto">
                         <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" Foreground="#D7DEE8" FontSize="13" VerticalAlignment="Center"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="8,0,0,0" VerticalAlignment="Center">

@@ -84,7 +84,8 @@ namespace MiniZotero.ViewModels
             bool isFolder,
             DocumentItem? document,
             int count = 0,
-            bool isExpanded = false)
+            bool isExpanded = false,
+            bool isTrash = false)
         {
             Name = name;
             Icon = icon;
@@ -92,7 +93,10 @@ namespace MiniZotero.ViewModels
             Document = document;
             Count = count;
             IsExpanded = isExpanded;
+            IsTrash = isTrash;
         }
+
+        public bool IsTrash { get; }
 
         public string Name { get; }
 
@@ -126,14 +130,24 @@ namespace MiniZotero.ViewModels
 
         public bool IsStarButtonVisible => IsDocument && Document?.IsDeleted != true;
 
-        public static DocumentExplorerItem Folder(string name, int count, bool isExpanded)
+        public bool IsTrashActionVisible => IsDocument && Document?.IsDeleted == false;
+
+        public bool IsRestoreActionVisible => IsDocument && Document?.IsDeleted == true;
+
+        public bool IsDeleteForeverActionVisible => IsDocument && Document?.IsDeleted == true;
+
+        public bool IsRemoveFolderVisible => IsFolder && !IsTrash;
+        
+        public bool IsRestoreFolderVisible => IsFolder && IsTrash;
+
+        public static DocumentExplorerItem Folder(string name, int count, bool isExpanded, bool isTrash = false)
         {
-            return new DocumentExplorerItem(name, "\uE8B7", isFolder: true, document: null, count, isExpanded);
+            return new DocumentExplorerItem(name, "\uE8B7", isFolder: true, document: null, count, isExpanded, isTrash);
         }
 
-        public static DocumentExplorerItem File(DocumentItem document)
+        public static DocumentExplorerItem File(DocumentItem document, bool isTrash = false)
         {
-            return new DocumentExplorerItem(document.Title, "\uE7C3", isFolder: false, document);
+            return new DocumentExplorerItem(document.Title, "\uE7C3", isFolder: false, document, count: 0, isExpanded: false, isTrash: isTrash);
         }
     }
 
@@ -340,7 +354,7 @@ namespace MiniZotero.ViewModels
             !IsWatchFolderConfigured
                 ? "Not configured"
                 : Directory.Exists(WatchFolderPath)
-                    ? $"Watching: {Path.GetFileName(WatchFolderPath)}"
+                    ? $"Watching: {new DirectoryInfo(WatchFolderPath).Name}"
                     : "Folder missing";
 
         public bool IsWatchFolderHealthy =>
@@ -438,6 +452,19 @@ namespace MiniZotero.ViewModels
             StatusMessage = $"Watching {Path.GetFileName(folderPath)}.";
         }
 
+        [RelayCommand]
+        private void ClearWatchFolder()
+        {
+            WatchFolderPath = string.Empty;
+
+            var settings = _settingsRepository.LoadSettings();
+            settings.WatchFolderPath = null;
+            _settingsRepository.SaveSettings(settings);
+
+            _watchFolderService.Stop();
+            StatusMessage = "Watch folder removed.";
+        }
+
         partial void OnWatchFolderPathChanged(string? value)
         {
             OnPropertyChanged(nameof(IsWatchFolderHealthy));
@@ -506,16 +533,7 @@ namespace MiniZotero.ViewModels
                 }
 
                 _libraryService.MarkDocumentOpened(value, Documents);
-
-                if (ShouldRefreshDocumentListAfterOpen())
-                {
-                    ApplyDocumentFilter();
-                    ApplySearchFilter();
-                }
-                else
-                {
-                    NotifyDocumentStateChanged();
-                }
+                NotifyDocumentStateChanged();
             });
         }
 
@@ -654,48 +672,80 @@ namespace MiniZotero.ViewModels
         }
 
         [RelayCommand]
-        private void MoveSelectedDocumentToTrash()
+        private void MoveSelectedDocumentToTrash(DocumentItem? document = null)
         {
-            if (SelectedDocument is null || SelectedDocument.IsDeleted)
+            var target = document ?? SelectedDocument;
+            if (target is null || target.IsDeleted)
             {
                 return;
             }
 
-            _libraryService.MoveToTrash(SelectedDocument, Documents);
+            _libraryService.MoveToTrash(target, Documents);
 
-            SelectedDocument = null;
+            if (target == SelectedDocument)
+            {
+                SelectedDocument = null;
+            }
             RefreshAfterDocumentChange();
         }
 
         [RelayCommand]
-        private void RestoreSelectedDocument()
+        private void RestoreSelectedDocument(DocumentItem? document = null)
         {
-            if (SelectedDocument is null || !SelectedDocument.IsDeleted)
+            var target = document ?? SelectedDocument;
+            if (target is null || !target.IsDeleted)
             {
                 return;
             }
 
-            _libraryService.Restore(SelectedDocument, Documents);
+            _libraryService.Restore(target, Documents);
 
-            SelectedDocument = null;
+            if (target == SelectedDocument)
+            {
+                SelectedDocument = null;
+            }
             RefreshAfterDocumentChange();
         }
 
         [RelayCommand]
-        private void DeleteSelectedDocumentForever()
+        private void RestoreFolder(DocumentExplorerItem? folderItem)
         {
-            if (SelectedDocument is null || !SelectedDocument.IsDeleted)
+            if (folderItem == null || !folderItem.IsFolder)
             {
                 return;
             }
 
-            var document = SelectedDocument;
-            SelectedDocument = null;
+            var folderName = folderItem.Name;
+            var docsToRestore = Documents.Where(d => GetDocumentFolderName(d) == folderName && d.IsDeleted).ToList();
 
-            _libraryService.DeleteForever(document, Documents);
+            if (docsToRestore.Count == 0) return;
+
+            foreach (var doc in docsToRestore)
+            {
+                _libraryService.Restore(doc, Documents);
+            }
+
+            RefreshAfterDocumentChange();
+        }
+
+        [RelayCommand]
+        private void DeleteSelectedDocumentForever(DocumentItem? document = null)
+        {
+            var target = document ?? SelectedDocument;
+            if (target is null || !target.IsDeleted)
+            {
+                return;
+            }
+
+            if (target == SelectedDocument)
+            {
+                SelectedDocument = null;
+            }
+
+            _libraryService.DeleteForever(target, Documents);
             foreach (var collection in Collections)
             {
-                _collectionService.RemoveDocumentFromCollection(document, collection);
+                _collectionService.RemoveDocumentFromCollection(target, collection);
             }
             SaveCollections();
 
@@ -714,35 +764,96 @@ namespace MiniZotero.ViewModels
         }
 
         [RelayCommand]
-        private void DeleteSelectedCollection()
+        private void DeleteCollection(CollectionItem? collection)
         {
-            if (SelectedCollection is null)
+            var target = collection ?? SelectedCollection;
+            if (target is null)
             {
                 return;
             }
 
-            var collection = SelectedCollection;
-            SelectedCollection = null;
-            _collectionService.DeleteCollection(collection, Collections);
+            if (SelectedCollection == target)
+            {
+                SelectedCollection = null;
+            }
+
+            _collectionService.DeleteCollection(target, Collections);
             SaveCollections();
             ApplyDocumentFilter();
-            StatusMessage = $"Deleted collection {collection.Name}.";
+            StatusMessage = $"Deleted collection {target.Name}.";
+        }
+
+        [RelayCommand]
+        private void RemoveFolder(DocumentExplorerItem? folderItem)
+        {
+            if (folderItem == null || !folderItem.IsFolder)
+            {
+                return;
+            }
+
+            var folderName = folderItem.Name;
+            var docsToRemove = Documents.Where(d => GetDocumentFolderName(d) == folderName).ToList();
+
+            foreach (var doc in docsToRemove)
+            {
+                _libraryService.MoveToTrash(doc, Documents);
+            }
+
+            _libraryService.SaveDocuments(Documents);
+            ApplyDocumentFilter();
+            StatusMessage = $"Removed folder '{folderName}' to trash.";
+        }
+
+        [RelayCommand]
+        private void StartRenameCollection(CollectionItem? collection)
+        {
+            if (collection != null)
+            {
+                collection.IsEditingName = true;
+            }
+        }
+
+        [RelayCommand]
+        private void CommitRenameCollection(CollectionItem? collection)
+        {
+            if (collection != null)
+            {
+                collection.IsEditingName = false;
+                _collectionService.RenameCollection(collection, collection.Name, Collections);
+                SaveCollections();
+                ApplyDocumentFilter();
+            }
         }
 
         public event Action<DocumentItem>? OpenDocumentRequested;
 
         [RelayCommand]
-        private void AddSelectedDocumentToCollection()
+        private void AddSelectedDocumentToCollection(DocumentItem? document = null)
         {
-            if (SelectedDocument is null || SelectedCollection is null)
+            var target = document ?? SelectedDocument;
+            if (target is null || SelectedCollection is null)
             {
                 return;
             }
 
-            _collectionService.AddDocumentToCollection(SelectedDocument, SelectedCollection);
+            _collectionService.AddDocumentToCollection(target, SelectedCollection);
             SaveCollections();
             ApplyDocumentFilter();
             StatusMessage = $"Added to {SelectedCollection.Name}.";
+        }
+
+        [RelayCommand]
+        private void AddSelectedDocumentToSpecificCollection(CollectionItem? collection)
+        {
+            if (SelectedDocument is null || collection is null)
+            {
+                return;
+            }
+
+            _collectionService.AddDocumentToCollection(SelectedDocument, collection);
+            SaveCollections();
+            ApplyDocumentFilter();
+            StatusMessage = $"Added to {collection.Name}.";
         }
 
         [RelayCommand]
@@ -756,14 +867,15 @@ namespace MiniZotero.ViewModels
         }
 
         [RelayCommand]
-        private void RemoveSelectedDocumentFromCollection()
+        private void RemoveSelectedDocumentFromCollection(DocumentItem? document = null)
         {
-            if (SelectedDocument is null || SelectedCollection is null)
+            var target = document ?? SelectedDocument;
+            if (target is null || SelectedCollection is null)
             {
                 return;
             }
 
-            _collectionService.RemoveDocumentFromCollection(SelectedDocument, SelectedCollection);
+            _collectionService.RemoveDocumentFromCollection(target, SelectedCollection);
             SaveCollections();
             ApplyDocumentFilter();
             StatusMessage = $"Removed from {SelectedCollection.Name}.";
@@ -790,12 +902,6 @@ namespace MiniZotero.ViewModels
         private void SaveCollections()
         {
             _collectionRepository.SaveCollections(Collections);
-        }
-
-        private bool ShouldRefreshDocumentListAfterOpen()
-        {
-            return SelectedNavigationItem?.Name == "Recent" ||
-                   SelectedSmartCollection?.Kind is "recent" or "unread";
         }
 
         private void ApplyDocumentFilter()
@@ -865,7 +971,7 @@ namespace MiniZotero.ViewModels
             foreach (var group in groups)
             {
                 var isExpanded = IsFolderExpanded(group.Key);
-                DocumentExplorerItems.Add(DocumentExplorerItem.Folder(group.Key, group.Count(), isExpanded));
+                DocumentExplorerItems.Add(DocumentExplorerItem.Folder(group.Key, group.Count(), isExpanded, IsTrashSelected));
 
                 if (!isExpanded)
                 {
@@ -874,7 +980,7 @@ namespace MiniZotero.ViewModels
 
                 foreach (var document in group)
                 {
-                    DocumentExplorerItems.Add(DocumentExplorerItem.File(document));
+                    DocumentExplorerItems.Add(DocumentExplorerItem.File(document, IsTrashSelected));
                 }
             }
 

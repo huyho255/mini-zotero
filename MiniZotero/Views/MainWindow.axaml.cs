@@ -98,17 +98,29 @@ namespace MiniZotero.Views
 
         private void OnDataContextChanged(object? sender, EventArgs e)
         {
-            if (BoundViewModel is not null)
+            if (BoundViewModel != null)
             {
                 BoundViewModel.OpenSettingsRequested -= OnOpenSettingsRequested;
+                BoundViewModel.OpenDocumentInfoRequested -= OnOpenDocumentInfoRequested;
             }
 
             BoundViewModel = DataContext as MainWindowViewModel;
 
-            if (BoundViewModel is not null)
+            if (BoundViewModel != null)
             {
                 BoundViewModel.OpenSettingsRequested += OnOpenSettingsRequested;
+                BoundViewModel.OpenDocumentInfoRequested += OnOpenDocumentInfoRequested;
             }
+        }
+
+        private async void OnOpenDocumentInfoRequested(DocumentInfoDialogViewModel viewModel)
+        {
+            var dialog = new DocumentInfoDialog
+            {
+                DataContext = viewModel
+            };
+
+            await dialog.ShowDialog<bool>(this);
         }
 
         private async void OnOpenSettingsRequested(SettingsDialogViewModel viewModel)

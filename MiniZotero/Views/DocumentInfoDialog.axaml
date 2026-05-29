@@ -1,0 +1,163 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MiniZotero.ViewModels"
+        x:Class="MiniZotero.Views.DocumentInfoDialog"
+        x:DataType="vm:DocumentInfoDialogViewModel"
+        Width="520"
+        Height="680"
+        MinWidth="520"
+        MinHeight="680"
+        Title="Document Information"
+        Background="#0A0F14"
+        Foreground="#E7EDF6"
+        FontFamily="Segoe UI"
+        WindowStartupLocation="CenterOwner"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40">
+
+    <Window.Styles>
+        <Style Selector="ScrollViewer">
+            <Setter Property="AllowAutoHide" Value="True"/>
+        </Style>
+
+        <Style Selector="TextBlock.Label">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="#D8E1EC"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#172230"/>
+            <Setter Property="BorderBrush" Value="#263242"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="#E7EDF6"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBox:focus, TextBox:pointerover">
+            <Setter Property="BorderBrush" Value="#3B82F6"/>
+            <Setter Property="Background" Value="#1C2633"/>
+        </Style>
+
+        <Style Selector="Button.ActionBtn">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="24,0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.Primary">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.Primary:pointerover">
+            <Setter Property="Background" Value="#2563EB"/>
+        </Style>
+        <Style Selector="Button.Secondary">
+            <Setter Property="Background" Value="#172230"/>
+            <Setter Property="Foreground" Value="#D8E1EC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#263242"/>
+        </Style>
+        <Style Selector="Button.Secondary:pointerover">
+            <Setter Property="Background" Value="#1C2633"/>
+            <Setter Property="BorderBrush" Value="#3B82F6"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="40,*,70">
+        <!-- Title Bar Area -->
+        <Border Grid.Row="0" Background="Transparent" IsHitTestVisible="False">
+            <TextBlock Text="Document Information"
+                       Foreground="#8795A8"
+                       FontWeight="SemiBold"
+                       FontSize="13"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Padding="24,12,24,24">
+            <StackPanel Spacing="20">
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                    <TextBlock Classes="Label" Text="Title"/>
+                    <TextBox Grid.Row="1" Text="{Binding Title, Mode=TwoWay}" PlaceholderText="Enter document title"/>
+                </Grid>
+
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                    <TextBlock Classes="Label" Text="Authors"/>
+                    <TextBox Grid.Row="1" Text="{Binding Authors, Mode=TwoWay}" PlaceholderText="e.g., John Doe, Jane Smith"/>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                    <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                        <TextBlock Classes="Label" Text="Year"/>
+                        <TextBox Grid.Row="1" Text="{Binding Year, Mode=TwoWay}" PlaceholderText="YYYY"/>
+                    </Grid>
+                    <Grid Grid.Column="1" RowDefinitions="Auto,Auto" RowSpacing="8">
+                        <TextBlock Classes="Label" Text="Document Type"/>
+                        <TextBox Grid.Row="1" Text="{Binding DocumentType, Mode=TwoWay}" PlaceholderText="e.g., Article, Book"/>
+                    </Grid>
+                </Grid>
+
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                    <TextBlock Classes="Label" Text="Journal / Publisher"/>
+                    <TextBox Grid.Row="1" Text="{Binding JournalOrPublisher, Mode=TwoWay}" PlaceholderText="Journal or publisher name"/>
+                </Grid>
+
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                    <TextBlock Classes="Label" Text="DOI"/>
+                    <TextBox Grid.Row="1" Text="{Binding Doi, Mode=TwoWay}" PlaceholderText="10.xxxx/xxxxx"/>
+                </Grid>
+
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                    <TextBlock Classes="Label" Text="Abstract"/>
+                    <TextBox Grid.Row="1" Text="{Binding Abstract, Mode=TwoWay}" 
+                             PlaceholderText="Document abstract..." 
+                             AcceptsReturn="True" 
+                             TextWrapping="Wrap" 
+                             Height="100" 
+                             VerticalContentAlignment="Top"/>
+                </Grid>
+
+                <Border Background="#172230" CornerRadius="8" Padding="16" BorderBrush="#263242" BorderThickness="1">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="File Details" Foreground="#AAB6C6" FontWeight="SemiBold" FontSize="12"/>
+                        
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Text="Added At" Foreground="#8795A8" FontSize="12"/>
+                            <TextBlock Grid.Column="1" Text="{Binding AddedAt}" Foreground="#D8E1EC" FontSize="12"/>
+                        </Grid>
+                        
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Text="File Path" Foreground="#8795A8" FontSize="12"/>
+                            <TextBlock Grid.Column="1" Text="{Binding OriginalFilePath}" Foreground="#D8E1EC" FontSize="12" TextWrapping="Wrap"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2"
+                Background="#0B1118"
+                BorderBrush="#172230"
+                BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Spacing="12"
+                        Margin="24,0">
+                <Button Classes="ActionBtn Secondary"
+                        Content="Cancel"
+                        Command="{Binding CancelCommand}"/>
+                <Button Classes="ActionBtn Primary"
+                        Content="Save"
+                        Command="{Binding SaveCommand}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

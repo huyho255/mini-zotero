@@ -29,6 +29,16 @@ namespace MiniZotero.Views
         private void OnDocumentPointerPressed(object? sender, PointerPressedEventArgs e)
         {
             var point = e.GetCurrentPoint(sender as Control);
+            
+            if (point.Properties.IsRightButtonPressed)
+            {
+                if (sender is Control { DataContext: ViewModels.DocumentExplorerItem item } &&
+                    DataContext is ViewModels.SidebarViewModel vm)
+                {
+                    vm.SelectedExplorerItem = item;
+                }
+            }
+
             if (point.Properties.IsLeftButtonPressed)
             {
                 _dragStartEventArgs = e;
@@ -63,6 +73,25 @@ namespace MiniZotero.Views
                         }
                     }
                 }
+            }
+        }
+
+        private void OnCollectionNameTextBoxKeyUp(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox textBox)
+            {
+                if (textBox.DataContext is Models.CollectionItem item && DataContext is ViewModels.SidebarViewModel vm)
+                {
+                    vm.CommitRenameCollectionCommand?.Execute(item);
+                }
+            }
+        }
+
+        private void OnCollectionNameTextBoxLostFocus(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox && textBox.DataContext is Models.CollectionItem item && DataContext is ViewModels.SidebarViewModel vm)
+            {
+                vm.CommitRenameCollectionCommand?.Execute(item);
             }
         }
     }

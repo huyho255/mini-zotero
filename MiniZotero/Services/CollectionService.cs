@@ -55,6 +55,7 @@ namespace MiniZotero.Services
 
             collection.DocumentIds.Add(document.Id);
             collection.UpdatedAt = DateTimeOffset.Now;
+            collection.NotifyDocumentCountChanged();
         }
 
         public void RemoveDocumentFromCollection(DocumentItem document, CollectionItem collection)
@@ -62,6 +63,7 @@ namespace MiniZotero.Services
             collection.DocumentIds.RemoveAll(id =>
                 string.Equals(id, document.Id, StringComparison.OrdinalIgnoreCase));
             collection.UpdatedAt = DateTimeOffset.Now;
+            collection.NotifyDocumentCountChanged();
         }
 
         public IEnumerable<DocumentItem> GetDocumentsInCollection(
