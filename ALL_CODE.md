@@ -374,6 +374,34 @@ Easy to explain in a student project.
 ```
 ``
 
+## extract.ps1
+
+``powershell
+$content = Get-Content 'c:\Users\Asus\source\repos\mini-zotero\ALL_CODE.md' -Raw; $start = $content.IndexOf('### `MiniZotero/Assets/PdfViewer/viewer.js`'); $start = $content.IndexOf('```javascript', $start) + 14; $end = $content.IndexOf('```', $start); $js = $content.Substring($start, $end - $start); Set-Content -Path 'c:\Users\Asus\source\repos\mini-zotero\MiniZotero\Assets\PdfViewer\viewer.js' -Value $js
+``
+
+## extract3.ps1
+
+``powershell
+$lines = Get-Content 'c:\Users\Asus\source\repos\mini-zotero\ALL_CODE.md'
+$inCode = $false
+$js = @()
+foreach ($line in $lines) {
+    if ($line -match '^## MiniZotero/Assets/PdfViewer/viewer\.js$') {
+        $inCode = $true
+        continue
+    }
+    if ($inCode -and $line -match '^```') {
+        if ($line -match '^```javascript') { continue }
+        else { $inCode = $false; break }
+    }
+    if ($inCode) {
+        $js += $line
+    }
+}
+Set-Content -Path 'c:\Users\Asus\source\repos\mini-zotero\MiniZotero\Assets\PdfViewer\viewer.js' -Value $js
+``
+
 ## MiniZotero.sln
 
 ``text
@@ -2471,14 +2499,15 @@ body {
 
 .searchLayer .searchItem {
     position: absolute;
-    background: rgba(56, 189, 248, 0.32);
+    background: rgba(253, 224, 71, 0.4);
     border-radius: 2px;
     pointer-events: none;
 }
 
 .searchLayer .searchItem.active {
-    background: rgba(14, 165, 233, 0.48);
-    outline: 1px solid rgba(2, 132, 199, 0.7);
+    background: rgba(250, 204, 21, 0.8);
+    outline: 2px solid rgba(234, 179, 8, 0.9);
+    z-index: 10;
 }
 
 .selectionOverlay {
@@ -2801,6 +2830,19 @@ async function createPagePlaceholders() {
     }
 }
 
+const sharedTextMeasureCanvas = document.createElement("canvas");
+const sharedTextMeasureCtx = sharedTextMeasureCanvas.getContext("2d");
+
+function measureProportionalWidth(fullText, partText) {
+    if (!fullText || fullText.length === 0) return 0;
+    sharedTextMeasureCtx.font = "100px sans-serif";
+    const totalWidth = sharedTextMeasureCtx.measureText(fullText).width || 1;
+    const partWidth = sharedTextMeasureCtx.measureText(partText).width;
+    return partWidth / totalWidth;
+}
+
+
+
 function buildSelectableWords(textContent, viewport) {
     const words = [];
     let globalIndex = 0;
@@ -2823,12 +2865,16 @@ function buildSelectableWords(textContent, viewport) {
             : Math.max(text.length * fontHeight * 0.45, 1);
         const parts = text.match(/\S+|\s+/g) ?? [];
 
-        let cursorX = x;
+        let currentPrefix = "";
+        let prefixRatio = 0;
 
         for (const part of parts) {
-            const width = text.length > 0
-                ? itemWidth * (part.length / text.length)
-                : 0;
+            const nextPrefix = currentPrefix + part;
+            const nextPrefixRatio = measureProportionalWidth(text, nextPrefix);
+            
+            const partWidthRatio = nextPrefixRatio - prefixRatio;
+            const width = text.length > 0 ? itemWidth * partWidthRatio : 0;
+            const cursorX = x + (itemWidth * prefixRatio);
 
             if (part.trim().length > 0) {
                 words.push({
@@ -2844,7 +2890,8 @@ function buildSelectableWords(textContent, viewport) {
                 });
             }
 
-            cursorX += width;
+            currentPrefix = nextPrefix;
+            prefixRatio = nextPrefixRatio;
         }
     }
 
@@ -4011,67 +4058,145 @@ async function getSearchablePageText(pageNumber) {
     if (searchTextByPage.has(pageNumber)) {
         return searchTextByPage.get(pageNumber);
     }
-
     const page = await pdfDocument.getPage(pageNumber);
     const textContent = await page.getTextContent({
         includeMarkedContent: false,
         disableNormalization: false
     });
-    const text = textContent.items
-        .map(item => item.str ?? "")
-        .join(" ");
 
-    searchTextByPage.set(pageNumber, text);
-    return text;
+    let rawText = "";
+    const rawMap = [];
+    let globalIndex = 0;
+    let itemIndex = 0;
+
+    for (const item of textContent.items) {
+        if (!item.str || !item.transform) {
+            itemIndex++;
+            continue;
+        }
+        
+        let itemCharIndex = 0;
+        const parts = item.str.match(/\S+|\s+/g) ?? [];
+        
+        for (const part of parts) {
+            if (part.trim().length > 0) {
+                for (let i = 0; i < part.length; i++) {
+                    rawMap.push({ 
+                        globalIndex, 
+                        charIndex: i, 
+                        partLength: part.length,
+                        itemIndex,
+                        itemCharIndex: itemCharIndex + i,
+                        itemLength: item.str.length
+                    });
+                }
+                rawText += part;
+                globalIndex++;
+            } else {
+                for (let i = 0; i < part.length; i++) {
+                    rawMap.push({ 
+                        globalIndex: -1, 
+                        charIndex: -1, 
+                        partLength: 0,
+                        itemIndex,
+                        itemCharIndex: itemCharIndex + i,
+                        itemLength: item.str.length
+                    });
+                }
+                rawText += part;
+            }
+            itemCharIndex += part.length;
+        }
+        rawMap.push({ globalIndex: -1, charIndex: -1, partLength: 0, itemIndex: -1, itemCharIndex: -1, itemLength: 0 });
+        rawText += " ";
+        itemIndex++;
+    }
+    
+    let normalizedText = "";
+    const indexMap = [];
+    let lastWasSpace = false;
+    
+    for (let i = 0; i < rawText.length; i++) {
+        const char = rawText[i];
+        const mapObj = rawMap[i];
+        
+        if (/\s/.test(char)) {
+            if (!lastWasSpace) {
+                normalizedText += " ";
+                indexMap.push(mapObj);
+                lastWasSpace = true;
+            }
+        } else {
+            normalizedText += char;
+            indexMap.push(mapObj);
+            lastWasSpace = false;
+        }
+    }
+    
+    const result = { text: normalizedText.toLocaleLowerCase(), indexMap, itemsCount: textContent.items.length };
+    searchTextByPage.set(pageNumber, result);
+    return result;
 }
 
-function getSearchWordsForPage(state) {
-    if (!searchQuery || state.textItems.length === 0) {
-        return [];
-    }
+const textMeasureCanvas = document.createElement("canvas");
+const textMeasureCtx = textMeasureCanvas.getContext("2d");
 
-    const query = searchQuery.toLocaleLowerCase();
-    const queryParts = query
-        .split(/\s+/)
-        .filter(part => part.length > 0);
-
-    return state.textItems.filter(word => {
-        const text = (word.text ?? "").toLocaleLowerCase();
-
-        return text.includes(query) ||
-            queryParts.some(part => text.includes(part) || part.includes(text));
-    });
+function getExactTextRatios(fullText, startIndex, endIndex, fontName = "sans-serif") {
+    if (!fullText || fullText.length === 0) return { startRatio: 0, endRatio: 1 };
+    
+    // We don't have the exact font, but a standard proportional font 
+    // preserves relative character widths very well.
+    textMeasureCtx.font = `100px sans-serif`;
+    
+    const totalWidth = textMeasureCtx.measureText(fullText).width || 1;
+    const prefixText = fullText.substring(0, startIndex);
+    const matchEndText = fullText.substring(0, endIndex);
+    
+    const prefixWidth = textMeasureCtx.measureText(prefixText).width;
+    const matchEndWidth = textMeasureCtx.measureText(matchEndText).width;
+    
+    return {
+        startRatio: prefixWidth / totalWidth,
+        endRatio: matchEndWidth / totalWidth
+    };
 }
 
 function renderSearchHighlightsForPage(state) {
     if (!state.searchLayer) {
         return;
     }
-
     state.searchLayer.innerHTML = "";
 
-    const words = getSearchWordsForPage(state);
-
-    if (words.length === 0) {
-        return;
-    }
-
     const activeResult = searchResults[currentSearchResultIndex];
-    const isActivePage = activeResult?.pageNumber === state.pageNumber;
+    const pageResults = searchResults.filter(r => r.pageNumber === state.pageNumber);
+    if (pageResults.length === 0) return;
+
     const fragment = document.createDocumentFragment();
 
-    for (const segment of buildHighlightSegments(words, state)) {
-        const item = document.createElement("div");
-
-        item.className = isActivePage
-            ? "searchItem active"
-            : "searchItem";
-        item.style.left = `${segment.left}px`;
-        item.style.top = `${segment.top}px`;
-        item.style.width = `${segment.width}px`;
-        item.style.height = `${segment.height}px`;
-
-        fragment.appendChild(item);
+    for (let i = 0; i < pageResults.length; i++) {
+        const result = pageResults[i];
+        const isActive = activeResult === result;
+        
+        if (result.words) {
+            for (const wInfo of result.words) {
+                const word = state.textItems.find(w => w.index === wInfo.index);
+                if (!word) continue;
+                
+                const exactRatios = getExactTextRatios(word.text, wInfo.startChar, wInfo.endChar);
+                
+                const highlightLeft = word.left + (exactRatios.startRatio * word.width);
+                const highlightWidth = (exactRatios.endRatio - exactRatios.startRatio) * word.width;
+                
+                const item = document.createElement("div");
+                item.className = isActive ? "searchItem active" : "searchItem";
+                item.style.left = `${highlightLeft}px`;
+                item.style.top = `${word.top}px`;
+                item.style.width = `${highlightWidth}px`;
+                item.style.height = `${word.height}px`;
+                
+                fragment.appendChild(item);
+            }
+        }
     }
 
     state.searchLayer.appendChild(fragment);
@@ -4094,10 +4219,34 @@ async function goToSearchResult(index) {
     currentSearchResultIndex = (index + searchResults.length) % searchResults.length;
     const result = searchResults[currentSearchResultIndex];
 
-    scrollToPage(result.pageNumber);
-    await renderVisiblePages();
-    renderAllSearchHighlights();
-    sendSearchState();
+    const currentState = pageStates.get(result.pageNumber);
+    if (!currentState || !isPageNearViewport(currentState.wrapper)) {
+        scrollToPage(result.pageNumber);
+    }
+    
+    setTimeout(async () => {
+        await renderVisiblePages(true);
+        renderAllSearchHighlights();
+        sendSearchState();
+        
+        const state = pageStates.get(result.pageNumber);
+        if (state && result.words.length > 0) {
+            const firstWordIndex = result.words[0].index;
+            const word = state.textItems.find(w => w.index === firstWordIndex);
+            if (word) {
+                const scale = state.renderedScale || currentScale || 1;
+                const top = state.wrapper.offsetTop + (word.top * scale);
+                const bottom = top + (word.height * scale);
+                
+                const viewportTop = viewer.scrollTop;
+                const viewportBottom = viewer.scrollTop + viewer.clientHeight;
+                
+                if (top < viewportTop + 50 || bottom > viewportBottom - 50) {
+                    viewer.scrollTop = top - 80;
+                }
+            }
+        }
+    }, 120);
 }
 
 async function performSearchText(query) {
@@ -4111,22 +4260,63 @@ async function performSearchText(query) {
         return;
     }
 
-    const normalizedQuery = searchQuery.toLocaleLowerCase();
+    const normalizedQuery = searchQuery.toLocaleLowerCase().replace(/\s+/g, " ").trim();
+    if (!normalizedQuery) {
+        renderAllSearchHighlights();
+        sendSearchState();
+        return;
+    }
 
     for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber++) {
-        const text = await getSearchablePageText(pageNumber);
-        const normalizedText = text.toLocaleLowerCase();
-        let matchIndex = normalizedText.indexOf(normalizedQuery);
+        const pageData = await getSearchablePageText(pageNumber);
+        let matchIndex = pageData.text.indexOf(normalizedQuery);
 
         while (matchIndex >= 0) {
+            const wordBounds = new Map();
+            const domBounds = new Map();
+            
+            for (let i = 0; i < normalizedQuery.length; i++) {
+                const mapInfo = pageData.indexMap[matchIndex + i];
+                
+                // Track for old-style buildSelectableWords highlight
+                if (mapInfo.globalIndex >= 0) {
+                    if (!wordBounds.has(mapInfo.globalIndex)) {
+                        wordBounds.set(mapInfo.globalIndex, { start: mapInfo.charIndex, end: mapInfo.charIndex, len: mapInfo.partLength });
+                    } else {
+                        const bounds = wordBounds.get(mapInfo.globalIndex);
+                        bounds.end = mapInfo.charIndex;
+                    }
+                }
+                
+                // Track for DOM-based highlight
+                if (mapInfo.itemIndex >= 0) {
+                    if (!domBounds.has(mapInfo.itemIndex)) {
+                        domBounds.set(mapInfo.itemIndex, { start: mapInfo.itemCharIndex, end: mapInfo.itemCharIndex, len: mapInfo.itemLength });
+                    } else {
+                        const bounds = domBounds.get(mapInfo.itemIndex);
+                        bounds.end = mapInfo.itemCharIndex;
+                    }
+                }
+            }
+            
             searchResults.push({
                 pageNumber,
-                index: matchIndex
+                index: matchIndex,
+                words: Array.from(wordBounds.entries()).map(([globalIndex, bounds]) => ({
+                    index: globalIndex,
+                    startRatio: bounds.start / bounds.len,
+                    endRatio: (bounds.end + 1) / bounds.len,
+                    startChar: bounds.start,
+                    endChar: bounds.end + 1
+                })),
+                domItems: Array.from(domBounds.entries()).map(([itemIndex, bounds]) => ({
+                    itemIndex,
+                    startRatio: bounds.start / bounds.len,
+                    endRatio: (bounds.end + 1) / bounds.len
+                }))
             });
-            matchIndex = normalizedText.indexOf(
-                normalizedQuery,
-                matchIndex + normalizedQuery.length
-            );
+            
+            matchIndex = pageData.text.indexOf(normalizedQuery, matchIndex + normalizedQuery.length);
         }
     }
 
@@ -8035,9 +8225,31 @@ namespace MiniZotero.ViewModels
 
         public bool IsHighlightEmptyViewVisible => HasDocument && !HasHighlights;
 
-        public string NoteZoomDisplayText => $"{NoteZoomPercent}%";
+        public string NoteZoomDisplayText
+        {
+            get => $"{NoteZoomPercent}%";
+            set
+            {
+                if (int.TryParse(value.Replace("%", "").Trim(), out var percent))
+                {
+                    NoteZoomPercent = Math.Clamp(percent, MinimumZoomPercent, MaximumZoomPercent);
+                }
+                OnPropertyChanged(nameof(NoteZoomDisplayText));
+            }
+        }
 
-        public string PreviewZoomDisplayText => $"{PreviewZoomPercent}%";
+        public string PreviewZoomDisplayText
+        {
+            get => $"{PreviewZoomPercent}%";
+            set
+            {
+                if (int.TryParse(value.Replace("%", "").Trim(), out var percent))
+                {
+                    PreviewZoomPercent = Math.Clamp(percent, MinimumZoomPercent, MaximumZoomPercent);
+                }
+                OnPropertyChanged(nameof(PreviewZoomDisplayText));
+            }
+        }
 
         public double NoteEditorFontSize => BaseNoteFontSize * NoteZoomPercent / 100.0;
 
@@ -8390,7 +8602,19 @@ namespace MiniZotero.ViewModels
 
         public string PageDisplayText => $"{CurrentPage} / {(TotalPages > 0 ? TotalPages.ToString() : "--")}";
 
-        public string ZoomDisplayText => $"{ZoomPercent}%";
+        public string ZoomDisplayText
+        {
+            get => $"{ZoomPercent}%";
+            set
+            {
+                if (int.TryParse(value.Replace("%", "").Trim(), out var percent))
+                {
+                    ZoomPercent = ClampZoomPercent(percent);
+                    ScriptRequested?.Invoke($"window.miniZoteroPdf?.setZoom?.({ZoomPercent});");
+                }
+                OnPropertyChanged(nameof(ZoomDisplayText));
+            }
+        }
 
         public string SearchResultText => SearchResultCount > 0
             ? $"{CurrentSearchResultIndex + 1} / {SearchResultCount}"
@@ -10825,6 +11049,25 @@ namespace MiniZotero.Views
             <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
         </Style>
+        <Style Selector="TextBox.ZoomInput">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="TextBox.ZoomInput:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.ZoomInput:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
     </UserControl.Styles>
 
     <Grid Background="#E6EBF2" RowDefinitions="280,6,*">
@@ -10844,7 +11087,9 @@ namespace MiniZotero.Views
                                VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                         <Border Classes="PanelZoomChip">
-                            <TextBlock Text="{Binding NoteZoomDisplayText}" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBox Classes="ZoomInput"
+                                     Text="{Binding NoteZoomDisplayText, Mode=TwoWay}" 
+                                     MinWidth="30"/>
                         </Border>
                         <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutNoteCommand}" ToolTip.Tip="Zoom note out"/>
                         <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInNoteCommand}" ToolTip.Tip="Zoom note in"/>
@@ -10987,7 +11232,9 @@ namespace MiniZotero.Views
                                VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                         <Border Classes="PanelZoomChip">
-                            <TextBlock Text="{Binding PreviewZoomDisplayText}" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBox Classes="ZoomInput"
+                                     Text="{Binding PreviewZoomDisplayText, Mode=TwoWay}" 
+                                     MinWidth="30"/>
                         </Border>
                         <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutPreviewCommand}" ToolTip.Tip="Zoom preview out"/>
                         <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInPreviewCommand}" ToolTip.Tip="Zoom preview in"/>
@@ -12451,6 +12698,25 @@ namespace MiniZotero.Views
     </UserControl.Resources>
 
     <UserControl.Styles>
+        <Style Selector="TextBox.ZoomInput">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="TextBox.ZoomInput:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.ZoomInput:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
         <Style Selector="Button.ToolButton">
             <Setter Property="Width" Value="30"/>
             <Setter Property="Height" Value="30"/>
@@ -12555,12 +12821,9 @@ namespace MiniZotero.Views
                             Command="{Binding ActiveTab.PdfViewer.ZoomOutCommand}"/>
                     <Border Classes="ZoomChip">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding ActiveTab.PdfViewer.ZoomDisplayText}"
-                                       Foreground="#334155"
-                                       FontSize="12"
-                                       MinWidth="35"
-                                       TextAlignment="Center"
-                                       VerticalAlignment="Center"/>
+                            <TextBox Classes="ZoomInput"
+                                     Text="{Binding ActiveTab.PdfViewer.ZoomDisplayText, Mode=TwoWay}"
+                                     MinWidth="35"/>
                             <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#94A3B8" FontSize="9" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
@@ -12589,7 +12852,8 @@ namespace MiniZotero.Views
                              Padding="8,0"
                              VerticalContentAlignment="Center"
                              FontSize="12"
-                             PlaceholderText="Find in PDF"/>
+                             PlaceholderText="Find in PDF"
+                             KeyDown="SearchTextBox_KeyDown"/>
                     <Button Classes="ToolButton"
                             Content="&#xE721;"
                             Command="{Binding ActiveTab.PdfViewer.SearchInPdfCommand}"
@@ -12623,16 +12887,16 @@ namespace MiniZotero.Views
                 BorderBrush="#D5DDE7"
                 BorderThickness="0,0,1,0">
             <StackPanel Margin="4,10" Spacing="8">
-                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
+                <ToggleButton Classes="RailButton" IsChecked="True" ToolTip.Tip="Document view">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE8A5;"
                                    FontFamily="Segoe MDL2 Assets"
                                    FontSize="15"
-                                   Foreground="{Binding $parent[Button].Foreground}"
+                                   Foreground="{Binding $parent[ToggleButton].Foreground}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"/>
                     </Grid>
-                </Button>
+                </ToggleButton>
                 <ToggleButton Classes="RailButton"
                               IsChecked="{Binding ActiveTab.PdfViewer.IsHandToolActive, Mode=OneWay}"
                               Command="{Binding ActiveTab.PdfViewer.ActivateHandToolCommand}">
@@ -12672,7 +12936,14 @@ namespace MiniZotero.Views
                                    VerticalAlignment="Center"/>
                     </Grid>
                 </ToggleButton>
-                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
+                <Button Classes="RailButton" ToolTip.Tip="Pop out">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Open in new window" />
+                            <MenuItem Header="Full screen" />
+                            <MenuItem Header="Export / Share..." />
+                        </MenuFlyout>
+                    </Button.Flyout>
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE8A7;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -12682,7 +12953,16 @@ namespace MiniZotero.Views
                                    VerticalAlignment="Center"/>
                     </Grid>
                 </Button>
-                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
+                <Button Classes="RailButton" Background="#DDE5EF" ToolTip.Tip="Advanced settings">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Change font" />
+                            <MenuItem Header="View edit history" />
+                            <MenuItem Header="File information" />
+                            <MenuItem Header="-" />
+                            <MenuItem Header="Delete page" />
+                        </MenuFlyout>
+                    </Button.Flyout>
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE712;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -12751,6 +13031,17 @@ namespace MiniZotero.Views
         {
             InitializeComponent();
         }
+
+        private void SearchTextBox_KeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+        {
+            if (e.Key == Avalonia.Input.Key.Enter)
+            {
+                if (DataContext is ViewModels.TabWorkspaceViewModel vm)
+                {
+                    vm.ActiveTab?.PdfViewer.SearchInPdfCommand.Execute(null);
+                }
+            }
+        }
     }
 }
 ``
@@ -12767,28 +13058,9 @@ _Skipped binary or large file. Size: 668079 bytes._
 
 _Skipped binary or large file. Size: 262863 bytes._
 
-## TestApp/Program.cs
+## temp.js
 
-_Skipped binary or large file. Size: 626 bytes._
-
-## TestApp/TestApp.csproj
-
-``xml
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.0.4" />
-  </ItemGroup>
-
-</Project>
-``
+_Skipped binary or large file. Size: 699338 bytes._
 
 ## tools/Update-AllCode.ps1
 

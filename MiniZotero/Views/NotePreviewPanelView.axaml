@@ -110,10 +110,30 @@
             <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
         </Style>
+        <Style Selector="TextBox.ZoomInput">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="TextBox.ZoomInput:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.ZoomInput:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
     </UserControl.Styles>
 
     <Grid Background="#E6EBF2" RowDefinitions="280,6,*">
         <Border Grid.Row="0" Classes="PanelCard" Margin="8,8,8,0">
+<<<<<<< HEAD
             <Grid RowDefinitions="Auto,Auto,*">
                 <DockPanel Grid.Row="0" Margin="12,8,10,8">
                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
@@ -132,6 +152,26 @@
                     <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Border Classes="PanelZoomChip" Margin="0,2,5,2">
                             <TextBlock Text="{Binding NoteZoomDisplayText}" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
+=======
+            <Grid RowDefinitions="42,34,*">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,0,10,0">
+                    <TextBlock Text="&#xE734;"
+                               FontFamily="Segoe MDL2 Assets"
+                               Foreground="#64748B"
+                               FontSize="14"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="Note taking"
+                               Foreground="#111827"
+                               FontWeight="SemiBold"
+                               Margin="9,0,0,0"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                        <Border Classes="PanelZoomChip">
+                            <TextBox Classes="ZoomInput"
+                                     Text="{Binding NoteZoomDisplayText, Mode=TwoWay}" 
+                                     MinWidth="30"/>
+>>>>>>> 4452a07f2f9e5d899512f50eb9d3015a8908966c
                         </Border>
                         <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutNoteCommand}" ToolTip.Tip="Zoom note out" Margin="0,2,5,2"/>
                         <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInNoteCommand}" ToolTip.Tip="Zoom note in" Margin="0,2,5,2"/>
@@ -262,6 +302,7 @@
         </Border>
 
         <Border Grid.Row="2" Classes="PanelCard" Margin="8,0,8,8">
+<<<<<<< HEAD
             <Grid RowDefinitions="Auto,*">
                 <DockPanel Grid.Row="0" Margin="12,8,10,8">
                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
@@ -281,6 +322,27 @@
                     <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Border Classes="PanelZoomChip" Margin="0,2,5,2">
                             <TextBlock Text="{Binding PreviewZoomDisplayText}" Foreground="#334155" FontSize="12" TextAlignment="Center" VerticalAlignment="Center"/>
+=======
+            <Grid RowDefinitions="42,*">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,0,10,0">
+                    <TextBlock Text="&#xE8A5;"
+                               FontFamily="Segoe MDL2 Assets"
+                               Foreground="#64748B"
+                               FontSize="14"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="Preview"
+                               Foreground="#111827"
+                               FontWeight="SemiBold"
+                               FontSize="12"
+                               Margin="9,0,0,0"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                        <Border Classes="PanelZoomChip">
+                            <TextBox Classes="ZoomInput"
+                                     Text="{Binding PreviewZoomDisplayText, Mode=TwoWay}" 
+                                     MinWidth="30"/>
+>>>>>>> 4452a07f2f9e5d899512f50eb9d3015a8908966c
                         </Border>
                         <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutPreviewCommand}" ToolTip.Tip="Zoom preview out" Margin="0,2,5,2"/>
                         <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInPreviewCommand}" ToolTip.Tip="Zoom preview in" Margin="0,2,5,2"/>
