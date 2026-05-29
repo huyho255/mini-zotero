@@ -70,3 +70,7 @@ dotnet build .\MiniZotero\MiniZotero.csproj
 ![MiniZotero logo](MiniZotero/Assets/M_logo_cropped.png)
 
 Credit: Le Huu Hoang
+
+## License
+
+This project is licensed under the MIT License.
