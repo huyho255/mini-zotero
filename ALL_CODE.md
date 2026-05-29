@@ -1374,11 +1374,11 @@ _Skipped binary or large file. Size: 175875 bytes._
 
 ## MiniZotero/Assets/PdfJs/build/pdf.mjs
 
-_Skipped binary or large file. Size: 817035 bytes._
+_Skipped binary or large file. Size: 843985 bytes._
 
 ## MiniZotero/Assets/PdfJs/build/pdf.worker.mjs
 
-_Skipped binary or large file. Size: 2161149 bytes._
+_Skipped binary or large file. Size: 2224281 bytes._
 
 ## MiniZotero/Assets/PdfJs/cmaps/78-EUC-H.bcmap
 
@@ -9206,6 +9206,9 @@ namespace MiniZotero.ViewModels
         private readonly SidebarNavigationItem _trashNavigationItem;
         private readonly Dictionary<string, bool> _expandedFolders = new(StringComparer.OrdinalIgnoreCase);
         private bool _isRebuildingTags;
+        private readonly Dictionary<string, int> _folderStartIndices = new();
+        private int _displayLimit = 10;
+        private IReadOnlyList<DocumentItem> _currentFilteredDocuments = Array.Empty<DocumentItem>();
 
         public SidebarViewModel()
             : this(new ApplicationServices())
@@ -9910,28 +9913,75 @@ namespace MiniZotero.ViewModels
 
         private void BuildDocumentExplorerItems(IReadOnlyList<DocumentItem> documents)
         {
-            var groups = documents
+            _currentFilteredDocuments = documents;
+            RenderExplorerItems();
+        }
+
+        private void RenderExplorerItems()
+        {
+            DocumentExplorerItems.Clear();
+            var groups = _currentFilteredDocuments
                 .GroupBy(GetDocumentFolderName)
                 .OrderBy(group => group.Key);
 
             foreach (var group in groups)
             {
-                var isExpanded = IsFolderExpanded(group.Key);
-                DocumentExplorerItems.Add(DocumentExplorerItem.Folder(group.Key, group.Count(), isExpanded));
+                var folderName = group.Key;
+                var isExpanded = IsFolderExpanded(folderName);
+                DocumentExplorerItems.Add(DocumentExplorerItem.Folder(folderName, group.Count(), isExpanded));
 
                 if (!isExpanded)
                 {
                     continue;
                 }
 
-                foreach (var document in group)
+                if (!_folderStartIndices.TryGetValue(folderName, out var startIndex))
+                {
+                    startIndex = 0;
+                    _folderStartIndices[folderName] = 0;
+                }
+
+                var files = group.Skip(startIndex).Take(_displayLimit).ToList();
+                foreach (var document in files)
                 {
                     DocumentExplorerItems.Add(DocumentExplorerItem.File(document));
                 }
             }
 
-            SelectedExplorerItem = DocumentExplorerItems.FirstOrDefault(item =>
-                item.Document?.Id == SelectedDocument?.Id);
+            if (SelectedDocument != null && SelectedExplorerItem == null)
+            {
+                SelectedExplorerItem = DocumentExplorerItems.FirstOrDefault(item =>
+                    item.Document?.Id == SelectedDocument?.Id);
+            }
+        }
+
+        [RelayCommand]
+        private void ScrollDocuments(int direction)
+        {
+            var firstExpandedGroup = _currentFilteredDocuments
+                .GroupBy(GetDocumentFolderName)
+                .OrderBy(group => group.Key)
+                .FirstOrDefault(g => IsFolderExpanded(g.Key));
+
+            if (firstExpandedGroup == null) return;
+
+            var folderName = firstExpandedGroup.Key;
+            _folderStartIndices.TryGetValue(folderName, out var startIndex);
+
+            startIndex += direction;
+
+            if (startIndex > firstExpandedGroup.Count() - _displayLimit)
+            {
+                startIndex = firstExpandedGroup.Count() - _displayLimit;
+            }
+
+            if (startIndex < 0)
+            {
+                startIndex = 0;
+            }
+
+            _folderStartIndices[folderName] = startIndex;
+            RenderExplorerItems();
         }
 
         private bool IsFolderExpanded(string folderName)
@@ -10365,17 +10415,16 @@ namespace MiniZotero.ViewModels
             <Setter Property="Background" Value="#E2E8F0"/>
         </Style>
 
-        <Style Selector="GridSplitter">
-            <Setter Property="Background" Value="Transparent"/>
+        <Style Selector="GridSplitter.Vertical">
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border Background="Transparent" Width="4" VerticalAlignment="Stretch" HorizontalAlignment="Center">
+                    <Border Background="{TemplateBinding Background}" Width="4" VerticalAlignment="Stretch" HorizontalAlignment="Center">
                         <Border x:Name="SplitterLine" Background="#202B38" Width="1" HorizontalAlignment="Center"/>
                     </Border>
                 </ControlTemplate>
             </Setter>
         </Style>
-        <Style Selector="GridSplitter:pointerover /template/ Border#SplitterLine">
+        <Style Selector="GridSplitter.Vertical:pointerover /template/ Border#SplitterLine">
             <Setter Property="Background" Value="#3B82F6"/>
         </Style>
     </Window.Styles>
@@ -10402,7 +10451,7 @@ namespace MiniZotero.ViewModels
                            Grid.Column="0"
                            DataContext="{Binding Sidebar}"/>
 
-        <GridSplitter Grid.Column="1" Grid.RowSpan="3"/>
+        <GridSplitter Grid.Column="1" Grid.RowSpan="3" Classes="Vertical" Background="#101720"/>
 
         <Border Grid.Row="0"
                 Grid.Column="2"
@@ -10557,7 +10606,7 @@ namespace MiniZotero.ViewModels
             </StackPanel>
         </Border>
 
-        <GridSplitter Grid.Column="3" Grid.Row="1" Grid.RowSpan="2"/>
+        <GridSplitter Grid.Column="3" Grid.Row="1" Grid.RowSpan="2" Classes="Vertical" Background="#0B1118"/>
 
         <views:NotePreviewPanelView Grid.Row="1"
                                     Grid.Column="4"
@@ -11072,52 +11121,55 @@ namespace MiniZotero.Views
 
     <Grid Background="#E6EBF2" RowDefinitions="280,6,*">
         <Border Grid.Row="0" Classes="PanelCard" Margin="8,8,8,0">
-            <Grid RowDefinitions="42,34,*">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,0,10,0">
-                    <TextBlock Text="&#xE734;"
-                               FontFamily="Segoe MDL2 Assets"
-                               Foreground="#64748B"
-                               FontSize="14"
-                               VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1"
-                               Text="Note taking"
-                               Foreground="#111827"
-                               FontWeight="SemiBold"
-                               Margin="9,0,0,0"
-                               VerticalAlignment="Center"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                        <Border Classes="PanelZoomChip">
+            <Grid RowDefinitions="Auto,Auto,*">
+                <DockPanel Grid.Row="0" Margin="12,8,10,8">
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <TextBlock Text="&#xE734;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   Foreground="#64748B"
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="Note taking"
+                                   Foreground="#111827"
+                                   FontWeight="SemiBold"
+                                   Margin="9,0,0,0"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Border Classes="PanelZoomChip" Margin="0,2,5,2">
                             <TextBox Classes="ZoomInput"
                                      Text="{Binding NoteZoomDisplayText, Mode=TwoWay}" 
                                      MinWidth="30"/>
                         </Border>
-                        <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutNoteCommand}" ToolTip.Tip="Zoom note out"/>
-                        <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInNoteCommand}" ToolTip.Tip="Zoom note in"/>
-                        <Button Classes="PanelIconButton" Content="&#xE8A7;" Command="{Binding ResetNoteZoomCommand}" ToolTip.Tip="Reset note zoom"/>
+                        <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutNoteCommand}" ToolTip.Tip="Zoom note out" Margin="0,2,5,2"/>
+                        <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInNoteCommand}" ToolTip.Tip="Zoom note in" Margin="0,2,5,2"/>
+                        <Button Classes="PanelIconButton" Content="&#xE8A7;" Command="{Binding ResetNoteZoomCommand}" ToolTip.Tip="Reset note zoom" Margin="0,2,5,2"/>
                         <Button Classes="ExportButton"
                                 Content="Export"
                                 Click="OnExportMarkdownClicked"
-                                IsVisible="{Binding HasDocument}"/>
-                        <Button Classes="PanelIconButton" Content="&#xE713;" IsEnabled="False" ToolTip.Tip="Coming soon"/>
-                    </StackPanel>
-                </Grid>
+                                IsVisible="{Binding HasDocument}"
+                                Margin="0,2,5,2"/>
+                        <Button Classes="PanelIconButton" Content="&#xE713;" IsEnabled="False" ToolTip.Tip="Coming soon" Margin="0,2,0,2"/>
+                    </WrapPanel>
+                </DockPanel>
 
                 <Border Grid.Row="1"
                         BorderBrush="#E5EAF0"
                         BorderThickness="0,1,0,1"
-                        Padding="12,0">
-                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                        <Button Classes="FormatButton" Content="H" ToolTip.Tip="Heading" Click="OnHeadingClicked"/>
-                        <Button Classes="FormatButton" Content="B" FontWeight="Bold" ToolTip.Tip="Bold" Click="OnBoldClicked"/>
-                        <Button Classes="FormatButton" Content="I" FontStyle="Italic" ToolTip.Tip="Italic" Click="OnItalicClicked"/>
-                        <Button Classes="FormatButton" Content="Q" ToolTip.Tip="Quote" Click="OnQuoteClicked"/>
-                        <Button Classes="FormatButton" Content="-" ToolTip.Tip="Bullet list" Click="OnBulletListClicked"/>
-                        <Button Classes="FormatButton" Content="[]" ToolTip.Tip="Link" Click="OnLinkClicked"/>
-                        <Button Classes="FormatButton" Content="1." ToolTip.Tip="Numbered list" Click="OnNumberedListClicked"/>
-                        <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Code" Click="OnCodeClicked"/>
-                        <Button Classes="FormatButton" Content="---" ToolTip.Tip="Horizontal rule" Click="OnHorizontalRuleClicked"/>
-                        <Button Classes="FormatButton" Content="☐" ToolTip.Tip="Checkbox list" Click="OnCheckboxListClicked"/>
-                        <Button x:Name="TableButton" Classes="FormatButton" ToolTip.Tip="Table">
+                        Padding="12,4">
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Classes="FormatButton" Content="H" ToolTip.Tip="Heading" Click="OnHeadingClicked" Margin="0,2,3,2"/>
+                        <Button Classes="FormatButton" Content="B" FontWeight="Bold" ToolTip.Tip="Bold" Click="OnBoldClicked" Margin="0,2,3,2"/>
+                        <Button Classes="FormatButton" Content="I" FontStyle="Italic" ToolTip.Tip="Italic" Click="OnItalicClicked" Margin="0,2,3,2"/>
+                        <Button Classes="FormatButton" Content="Q" ToolTip.Tip="Quote" Click="OnQuoteClicked" Margin="0,2,3,2"/>
+                        <Button Classes="FormatButton" Content="-" ToolTip.Tip="Bullet list" Click="OnBulletListClicked" Margin="0,2,3,2"/>
+                        <Button Classes="FormatButton" Content="[]" ToolTip.Tip="Link" Click="OnLinkClicked" Margin="0,2,3,2"/>
+                        <Button Classes="FormatButton" Content="1." ToolTip.Tip="Numbered list" Click="OnNumberedListClicked" Margin="0,2,3,2"/>
+                        <Button Classes="FormatButton" Content="&#xE8B0;" FontFamily="Segoe MDL2 Assets" ToolTip.Tip="Code" Click="OnCodeClicked" Margin="0,2,3,2"/>
+                        <Button Classes="FormatButton" Content="---" ToolTip.Tip="Horizontal rule" Click="OnHorizontalRuleClicked" Margin="0,2,3,2"/>
+                        <Button Classes="FormatButton" Content="☐" ToolTip.Tip="Checkbox list" Click="OnCheckboxListClicked" Margin="0,2,3,2"/>
+                        <Button x:Name="TableButton" Classes="FormatButton" ToolTip.Tip="Table" Margin="0,2,0,2">
                             <Button.Flyout>
                                 <Flyout Placement="BottomEdgeAlignedLeft" Opened="OnTableFlyoutOpened">
                                     <StackPanel Spacing="8" Margin="4">
@@ -11165,7 +11217,7 @@ namespace MiniZotero.Views
                                 <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8" VerticalAlignment="Center" Margin="2,0,0,0"/>
                             </StackPanel>
                         </Button>
-                    </StackPanel>
+                    </WrapPanel>
                 </Border>
 
                 <Grid Grid.Row="2">
@@ -11198,6 +11250,8 @@ namespace MiniZotero.Views
             </Grid>
         </Border>
 
+        <GridSplitter Grid.Row="1" Background="Transparent" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ZIndex="1"/>
+
         <Border Grid.Row="1"
                 Width="30"
                 Height="14"
@@ -11206,7 +11260,8 @@ namespace MiniZotero.Views
                 BorderBrush="#D5DDE7"
                 BorderThickness="1"
                 HorizontalAlignment="Center"
-                VerticalAlignment="Center">
+                VerticalAlignment="Center"
+                IsHitTestVisible="False">
             <TextBlock Text="::::"
                        Foreground="#64748B"
                        FontSize="11"
@@ -11216,31 +11271,33 @@ namespace MiniZotero.Views
         </Border>
 
         <Border Grid.Row="2" Classes="PanelCard" Margin="8,0,8,8">
-            <Grid RowDefinitions="42,*">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,0,10,0">
-                    <TextBlock Text="&#xE8A5;"
-                               FontFamily="Segoe MDL2 Assets"
-                               Foreground="#64748B"
-                               FontSize="14"
-                               VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1"
-                               Text="Preview"
-                               Foreground="#111827"
-                               FontWeight="SemiBold"
-                               FontSize="12"
-                               Margin="9,0,0,0"
-                               VerticalAlignment="Center"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                        <Border Classes="PanelZoomChip">
+            <Grid RowDefinitions="Auto,*">
+                <DockPanel Grid.Row="0" Margin="12,8,10,8">
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <TextBlock Text="&#xE8A5;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   Foreground="#64748B"
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="Preview"
+                                   Foreground="#111827"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Margin="9,0,0,0"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Border Classes="PanelZoomChip" Margin="0,2,5,2">
                             <TextBox Classes="ZoomInput"
                                      Text="{Binding PreviewZoomDisplayText, Mode=TwoWay}" 
                                      MinWidth="30"/>
                         </Border>
-                        <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutPreviewCommand}" ToolTip.Tip="Zoom preview out"/>
-                        <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInPreviewCommand}" ToolTip.Tip="Zoom preview in"/>
-                        <Button Classes="PanelIconButton" Content="&#xE713;" Command="{Binding ResetPreviewZoomCommand}" ToolTip.Tip="Reset preview zoom"/>
-                    </StackPanel>
-                </Grid>
+                        <Button Classes="PanelIconButton" Content="&#xE738;" Command="{Binding ZoomOutPreviewCommand}" ToolTip.Tip="Zoom preview out" Margin="0,2,5,2"/>
+                        <Button Classes="PanelIconButton" Content="&#xE710;" Command="{Binding ZoomInPreviewCommand}" ToolTip.Tip="Zoom preview in" Margin="0,2,5,2"/>
+                        <Button Classes="PanelIconButton" Content="&#xE713;" Command="{Binding ResetPreviewZoomCommand}" ToolTip.Tip="Reset preview zoom" Margin="0,2,0,2"/>
+                    </WrapPanel>
+                </DockPanel>
 
                 <Border Grid.Row="1"
                         BorderBrush="#E5EAF0"
@@ -12318,6 +12375,7 @@ namespace MiniZotero.Views
 
                         <ListBox Grid.Row="1"
                                  Classes="DocumentList"
+                                 PointerWheelChanged="OnDocumentListPointerWheelChanged"
                                  ItemsSource="{Binding DocumentExplorerItems}"
                                  IsVisible="{Binding HasVisibleDocuments}"
                                  SelectedItem="{Binding SelectedExplorerItem, Mode=TwoWay}">
@@ -12675,6 +12733,16 @@ namespace MiniZotero.Views
                         }
                     }
                 }
+            }
+        }
+
+        private void OnDocumentListPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+        {
+            if (DataContext is ViewModels.SidebarViewModel vm)
+            {
+                int direction = e.Delta.Y < 0 ? 1 : -1;
+                vm.ScrollDocumentsCommand.Execute(direction);
+                e.Handled = true; 
             }
         }
     }
@@ -13061,6 +13129,29 @@ _Skipped binary or large file. Size: 262863 bytes._
 ## temp.js
 
 _Skipped binary or large file. Size: 699338 bytes._
+
+## TestApp/Program.cs
+
+_Skipped binary or large file. Size: 626 bytes._
+
+## TestApp/TestApp.csproj
+
+``xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.4" />
+  </ItemGroup>
+
+</Project>
+``
 
 ## tools/Update-AllCode.ps1
 

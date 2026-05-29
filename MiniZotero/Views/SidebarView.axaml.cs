@@ -65,5 +65,15 @@ namespace MiniZotero.Views
                 }
             }
         }
+
+        private void OnDocumentListPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+        {
+            if (DataContext is ViewModels.SidebarViewModel vm)
+            {
+                int direction = e.Delta.Y < 0 ? 1 : -1;
+                vm.ScrollDocumentsCommand.Execute(direction);
+                e.Handled = true; 
+            }
+        }
     }
 }
