@@ -12,6 +12,25 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
+        <Style Selector="TextBox.ZoomInput">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="TextBox.ZoomInput:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.ZoomInput:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
         <Style Selector="Button.ToolButton">
             <Setter Property="Width" Value="30"/>
             <Setter Property="Height" Value="30"/>
@@ -116,12 +135,9 @@
                             Command="{Binding ActiveTab.PdfViewer.ZoomOutCommand}"/>
                     <Border Classes="ZoomChip">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding ActiveTab.PdfViewer.ZoomDisplayText}"
-                                       Foreground="#334155"
-                                       FontSize="12"
-                                       MinWidth="35"
-                                       TextAlignment="Center"
-                                       VerticalAlignment="Center"/>
+                            <TextBox Classes="ZoomInput"
+                                     Text="{Binding ActiveTab.PdfViewer.ZoomDisplayText, Mode=TwoWay}"
+                                     MinWidth="35"/>
                             <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#94A3B8" FontSize="9" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
@@ -150,7 +166,8 @@
                              Padding="8,0"
                              VerticalContentAlignment="Center"
                              FontSize="12"
-                             PlaceholderText="Find in PDF"/>
+                             PlaceholderText="Find in PDF"
+                             KeyDown="SearchTextBox_KeyDown"/>
                     <Button Classes="ToolButton"
                             Content="&#xE721;"
                             Command="{Binding ActiveTab.PdfViewer.SearchInPdfCommand}"
@@ -184,16 +201,16 @@
                 BorderBrush="#D5DDE7"
                 BorderThickness="0,0,1,0">
             <StackPanel Margin="4,10" Spacing="8">
-                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
+                <ToggleButton Classes="RailButton" IsChecked="True" ToolTip.Tip="Document view">
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE8A5;"
                                    FontFamily="Segoe MDL2 Assets"
                                    FontSize="15"
-                                   Foreground="{Binding $parent[Button].Foreground}"
+                                   Foreground="{Binding $parent[ToggleButton].Foreground}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"/>
                     </Grid>
-                </Button>
+                </ToggleButton>
                 <ToggleButton Classes="RailButton"
                               IsChecked="{Binding ActiveTab.PdfViewer.IsHandToolActive, Mode=OneWay}"
                               Command="{Binding ActiveTab.PdfViewer.ActivateHandToolCommand}">
@@ -233,7 +250,14 @@
                                    VerticalAlignment="Center"/>
                     </Grid>
                 </ToggleButton>
-                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
+                <Button Classes="RailButton" ToolTip.Tip="Pop out">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Open in new window" />
+                            <MenuItem Header="Full screen" />
+                            <MenuItem Header="Export / Share..." />
+                        </MenuFlyout>
+                    </Button.Flyout>
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE8A7;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -243,7 +267,16 @@
                                    VerticalAlignment="Center"/>
                     </Grid>
                 </Button>
-                <Button Classes="RailButton" IsEnabled="False" ToolTip.Tip="Coming soon">
+                <Button Classes="RailButton" Background="#DDE5EF" ToolTip.Tip="Advanced settings">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Change font" />
+                            <MenuItem Header="View edit history" />
+                            <MenuItem Header="File information" />
+                            <MenuItem Header="-" />
+                            <MenuItem Header="Delete page" />
+                        </MenuFlyout>
+                    </Button.Flyout>
                     <Grid Width="20" Height="24">
                         <TextBlock Text="&#xE712;"
                                    FontFamily="Segoe MDL2 Assets"
