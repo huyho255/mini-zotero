@@ -154,6 +154,9 @@ namespace MiniZotero.ViewModels
         private readonly SidebarNavigationItem _trashNavigationItem;
         private readonly Dictionary<string, bool> _expandedFolders = new(StringComparer.OrdinalIgnoreCase);
         private bool _isRebuildingTags;
+        private readonly Dictionary<string, int> _folderStartIndices = new();
+        private int _displayLimit = 10;
+        private IReadOnlyList<DocumentItem> _currentFilteredDocuments = Array.Empty<DocumentItem>();
 
         public SidebarViewModel()
             : this(new ApplicationServices())
@@ -858,28 +861,75 @@ namespace MiniZotero.ViewModels
 
         private void BuildDocumentExplorerItems(IReadOnlyList<DocumentItem> documents)
         {
-            var groups = documents
+            _currentFilteredDocuments = documents;
+            RenderExplorerItems();
+        }
+
+        private void RenderExplorerItems()
+        {
+            DocumentExplorerItems.Clear();
+            var groups = _currentFilteredDocuments
                 .GroupBy(GetDocumentFolderName)
                 .OrderBy(group => group.Key);
 
             foreach (var group in groups)
             {
-                var isExpanded = IsFolderExpanded(group.Key);
-                DocumentExplorerItems.Add(DocumentExplorerItem.Folder(group.Key, group.Count(), isExpanded));
+                var folderName = group.Key;
+                var isExpanded = IsFolderExpanded(folderName);
+                DocumentExplorerItems.Add(DocumentExplorerItem.Folder(folderName, group.Count(), isExpanded));
 
                 if (!isExpanded)
                 {
                     continue;
                 }
 
-                foreach (var document in group)
+                if (!_folderStartIndices.TryGetValue(folderName, out var startIndex))
+                {
+                    startIndex = 0;
+                    _folderStartIndices[folderName] = 0;
+                }
+
+                var files = group.Skip(startIndex).Take(_displayLimit).ToList();
+                foreach (var document in files)
                 {
                     DocumentExplorerItems.Add(DocumentExplorerItem.File(document));
                 }
             }
 
-            SelectedExplorerItem = DocumentExplorerItems.FirstOrDefault(item =>
-                item.Document?.Id == SelectedDocument?.Id);
+            if (SelectedDocument != null && SelectedExplorerItem == null)
+            {
+                SelectedExplorerItem = DocumentExplorerItems.FirstOrDefault(item =>
+                    item.Document?.Id == SelectedDocument?.Id);
+            }
+        }
+
+        [RelayCommand]
+        private void ScrollDocuments(int direction)
+        {
+            var firstExpandedGroup = _currentFilteredDocuments
+                .GroupBy(GetDocumentFolderName)
+                .OrderBy(group => group.Key)
+                .FirstOrDefault(g => IsFolderExpanded(g.Key));
+
+            if (firstExpandedGroup == null) return;
+
+            var folderName = firstExpandedGroup.Key;
+            _folderStartIndices.TryGetValue(folderName, out var startIndex);
+
+            startIndex += direction;
+
+            if (startIndex > firstExpandedGroup.Count() - _displayLimit)
+            {
+                startIndex = firstExpandedGroup.Count() - _displayLimit;
+            }
+
+            if (startIndex < 0)
+            {
+                startIndex = 0;
+            }
+
+            _folderStartIndices[folderName] = startIndex;
+            RenderExplorerItems();
         }
 
         private bool IsFolderExpanded(string folderName)

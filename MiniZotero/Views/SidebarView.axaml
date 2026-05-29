@@ -330,6 +330,7 @@
 
                         <ListBox Grid.Row="1"
                                  Classes="DocumentList"
+                                 PointerWheelChanged="OnDocumentListPointerWheelChanged"
                                  ItemsSource="{Binding DocumentExplorerItems}"
                                  IsVisible="{Binding HasVisibleDocuments}"
                                  SelectedItem="{Binding SelectedExplorerItem, Mode=TwoWay}">
