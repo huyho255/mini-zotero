@@ -5,30 +5,7 @@
              x:DataType="vm:PdfViewerViewModel">
 
     <Grid Background="#E6EBF2">
-        <Border Background="#F8FAFC"
-                BorderBrush="#D5DDE7"
-                BorderThickness="1"
-                CornerRadius="8"
-                Margin="20"
-                IsVisible="{Binding IsEmptyViewVisible}">
-            <StackPanel HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Spacing="8"
-                        Width="360">
-                <TextBlock Text="{Binding EmptyTitle}"
-                           Foreground="#172033"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           HorizontalAlignment="Center"/>
-                <TextBlock Text="{Binding EmptyMessage}"
-                           Foreground="#7C8A9E"
-                           FontSize="13"
-                           TextWrapping="Wrap"
-                           TextAlignment="Center"/>
-            </StackPanel>
-        </Border>
-
-        <Grid IsVisible="{Binding HasDocumentLoaded}" RowDefinitions="*,28">
+        <Grid RowDefinitions="*,28">
             <Border Grid.Row="0"
                     Background="#E6EBF2">
                 <NativeWebView x:Name="PdfWebView"

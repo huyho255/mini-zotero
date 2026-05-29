@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MiniZotero.Models;
@@ -10,14 +11,14 @@ namespace MiniZotero.ViewModels
     {
         private readonly IAppSettingsRepository _settingsRepository;
         private readonly Action<AppSettings> _applySettings;
-        private readonly Action _clearTrash;
+        private readonly Func<Task> _clearTrash;
 
         public SettingsDialogViewModel(
             AppSettings settings,
             string storageRootPath,
             IAppSettingsRepository settingsRepository,
             Action<AppSettings> applySettings,
-            Action clearTrash)
+            Func<Task> clearTrash)
         {
             _settingsRepository = settingsRepository;
             _applySettings = applySettings;
@@ -30,7 +31,7 @@ namespace MiniZotero.ViewModels
             DefaultPdfZoomPercent = settings.DefaultPdfZoomPercent <= 0
                 ? 120
                 : settings.DefaultPdfZoomPercent;
-            AutoOpenLastDocument = settings.AutoOpenLastDocument;
+            RestorePreviousSession = settings.RestorePreviousSession;
             StorageRootPath = storageRootPath;
         }
 
@@ -44,7 +45,7 @@ namespace MiniZotero.ViewModels
         private int _defaultPdfZoomPercent = 120;
 
         [ObservableProperty]
-        private bool _autoOpenLastDocument;
+        private bool _restorePreviousSession;
 
         [ObservableProperty]
         private string _storageRootPath = string.Empty;
@@ -59,16 +60,14 @@ namespace MiniZotero.ViewModels
         [RelayCommand]
         private void Save()
         {
-            var settings = new AppSettings
-            {
-                WatchFolderPath = string.IsNullOrWhiteSpace(WatchFolderPath)
-                    ? null
-                    : WatchFolderPath.Trim(),
-                ThemeMode = string.IsNullOrWhiteSpace(ThemeMode) ? "System" : ThemeMode,
-                DefaultPdfZoomPercent = Math.Clamp(DefaultPdfZoomPercent, 50, 400),
-                AutoOpenLastDocument = AutoOpenLastDocument,
-                StorageRootPath = StorageRootPath
-            };
+            var settings = _settingsRepository.LoadSettings();
+            
+            settings.WatchFolderPath = string.IsNullOrWhiteSpace(WatchFolderPath)
+                ? null
+                : WatchFolderPath.Trim();
+            settings.ThemeMode = string.IsNullOrWhiteSpace(ThemeMode) ? "System" : ThemeMode;
+            settings.DefaultPdfZoomPercent = Math.Clamp(DefaultPdfZoomPercent, 50, 400);
+            settings.RestorePreviousSession = RestorePreviousSession;
 
             _settingsRepository.SaveSettings(settings);
             _applySettings(settings);
@@ -83,9 +82,9 @@ namespace MiniZotero.ViewModels
         }
 
         [RelayCommand]
-        private void ClearTrash()
+        private async Task ClearTrash()
         {
-            _clearTrash();
+            await _clearTrash();
             StatusMessage = "Trash cleared.";
         }
     }
