@@ -10140,15 +10140,36 @@ namespace MiniZotero.ViewModels
             <Setter Property="Opacity" Value="0.5"/>
             <Setter Property="Background" Value="#E2E8F0"/>
         </Style>
+
+        <Style Selector="GridSplitter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="Transparent" Width="4" VerticalAlignment="Stretch" HorizontalAlignment="Center">
+                        <Border x:Name="SplitterLine" Background="#202B38" Width="1" HorizontalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="GridSplitter:pointerover /template/ Border#SplitterLine">
+            <Setter Property="Background" Value="#3B82F6"/>
+        </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="48,*,30" ColumnDefinitions="224,*,492"
+    <Grid RowDefinitions="48,*,30"
           DragDrop.AllowDrop="True">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="224" MinWidth="180" MaxWidth="400"/>
+            <ColumnDefinition Width="4"/>
+            <ColumnDefinition Width="*" MinWidth="300"/>
+            <ColumnDefinition Width="4"/>
+            <ColumnDefinition Width="492" MinWidth="250" MaxWidth="800"/>
+        </Grid.ColumnDefinitions>
 
         <!-- Lag-free Drag Visual Layer -->
         <Canvas x:Name="DragVisualLayer"
                 Grid.Row="0" Grid.RowSpan="3"
-                Grid.Column="0" Grid.ColumnSpan="3"
+                Grid.Column="0" Grid.ColumnSpan="5"
                 IsHitTestVisible="False"
                 ZIndex="999"/>
 
@@ -10157,9 +10178,11 @@ namespace MiniZotero.ViewModels
                            Grid.Column="0"
                            DataContext="{Binding Sidebar}"/>
 
+        <GridSplitter Grid.Column="1" Grid.RowSpan="3"/>
+
         <Border Grid.Row="0"
-                Grid.Column="1"
-                Grid.ColumnSpan="2"
+                Grid.Column="2"
+                Grid.ColumnSpan="3"
                 Background="#101720"
                 BorderBrush="#202B38"
                 BorderThickness="0,0,0,1">
@@ -10289,11 +10312,11 @@ namespace MiniZotero.ViewModels
 
         <views:TabWorkspaceView x:Name="TabWorkspace"
                                 Grid.Row="1"
-                                Grid.Column="1"
+                                Grid.Column="2"
                                 DataContext="{Binding Workspace}"/>
 
         <Border x:Name="DropZoneOverlay"
-                Grid.Row="1" Grid.Column="1"
+                Grid.Row="1" Grid.Column="2"
                 Background="#1E293B"
                 BorderBrush="#3B82F6"
                 BorderThickness="2"
@@ -10310,77 +10333,80 @@ namespace MiniZotero.ViewModels
             </StackPanel>
         </Border>
 
+        <GridSplitter Grid.Column="3" Grid.Row="1" Grid.RowSpan="2"/>
+
         <views:NotePreviewPanelView Grid.Row="1"
-                                    Grid.Column="2"
+                                    Grid.Column="4"
                                     DataContext="{Binding Notes}"/>
 
         <Border Grid.Row="1"
-                Grid.Column="2"
-                Width="360"
-                MaxHeight="320"
-                Margin="54,8,0,0"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
-                Background="#101720"
-                BorderBrush="#263242"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="10"
-                IsVisible="{Binding Sidebar.IsSearchDropdownVisible}">
-            <Grid RowDefinitions="Auto,*">
-                <Grid ColumnDefinitions="*,Auto" Margin="2,0,2,8">
-                    <TextBlock Text="Search results"
-                               Foreground="#E7EDF6"
-                               FontSize="12"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding Sidebar.SearchResultDocuments.Count}"
-                               Foreground="#8D9AAB"
-                               FontSize="11"/>
+                Grid.Column="4"
+                    Width="360"
+                    MaxHeight="320"
+                    Margin="54,8,0,0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Background="#101720"
+                    BorderBrush="#263242"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="10"
+                    IsVisible="{Binding Sidebar.IsSearchDropdownVisible}">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid ColumnDefinitions="*,Auto" Margin="2,0,2,8">
+                        <TextBlock Text="Search results"
+                                   Foreground="#E7EDF6"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding Sidebar.SearchResultDocuments.Count}"
+                                   Foreground="#8D9AAB"
+                                   FontSize="11"/>
+                    </Grid>
+
+                    <Border Grid.Row="1"
+                            Background="#1E293B"
+                            CornerRadius="8"
+                            Padding="12"
+                            IsVisible="{Binding Sidebar.IsNoSearchResultVisible}">
+                        <TextBlock Text="No matching documents."
+                                   Foreground="#94A3B8"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1"
+                                  MaxHeight="260"
+                                  IsVisible="{Binding Sidebar.HasSearchResults}">
+                        <ListBox Classes="SearchResultsList"
+                                 ItemsSource="{Binding Sidebar.SearchResultDocuments}"
+                                 SelectedItem="{Binding Sidebar.SelectedDocument, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:DocumentItem">
+                                    <Border Padding="9,7">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="{Binding Title}"
+                                                       Foreground="#F2F6FC"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="12"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding FilePath}"
+                                                       Foreground="#8D9AAB"
+                                                       FontSize="10"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
                 </Grid>
+            </Border>
 
-                <Border Grid.Row="1"
-                        Background="#1E293B"
-                        CornerRadius="8"
-                        Padding="12"
-                        IsVisible="{Binding Sidebar.IsNoSearchResultVisible}">
-                    <TextBlock Text="No matching documents."
-                               Foreground="#94A3B8"
-                               FontSize="12"
-                               TextWrapping="Wrap"/>
-                </Border>
-
-                <ScrollViewer Grid.Row="1"
-                              MaxHeight="260"
-                              IsVisible="{Binding Sidebar.HasSearchResults}">
-                    <ListBox Classes="SearchResultsList"
-                             ItemsSource="{Binding Sidebar.SearchResultDocuments}"
-                             SelectedItem="{Binding Sidebar.SelectedDocument, Mode=TwoWay}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="models:DocumentItem">
-                                <Border Padding="9,7">
-                                    <StackPanel Spacing="3">
-                                        <TextBlock Text="{Binding Title}"
-                                                   Foreground="#F2F6FC"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="12"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding FilePath}"
-                                                   Foreground="#8D9AAB"
-                                                   FontSize="10"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </ScrollViewer>
-            </Grid>
-        </Border>
-
+        <!-- Status Bar -->
         <Border Grid.Row="2"
-                Grid.Column="1"
-                Grid.ColumnSpan="2"
+                Grid.Column="2"
+                Grid.ColumnSpan="3"
                 Background="#0B1118"
                 BorderBrush="#202B38"
                 BorderThickness="0,1,0,0">
@@ -11411,42 +11437,103 @@ namespace MiniZotero.Views
         xmlns:vm="using:MiniZotero.ViewModels"
         x:Class="MiniZotero.Views.SettingsDialog"
         x:DataType="vm:SettingsDialogViewModel"
-        Width="480"
-        Height="440"
-        MinWidth="440"
-        MinHeight="400"
+        Width="520"
+        Height="540"
+        MinWidth="520"
+        MinHeight="540"
         Title="Settings"
-        Background="#0B1118"
+        Background="#0A0F14"
         Foreground="#E7EDF6"
         FontFamily="Segoe UI"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40">
 
     <Window.Styles>
-        <Style Selector="TextBlock.Label">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#8D9AAB"/>
+        <!-- Modern ScrollViewer -->
+        <Style Selector="ScrollViewer">
+            <Setter Property="AllowAutoHide" Value="True"/>
         </Style>
 
+        <!-- Base Label -->
+        <Style Selector="TextBlock.Label">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="#D8E1EC"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        
+        <Style Selector="TextBlock.SubLabel">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#8795A8"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+        </Style>
+
+        <!-- Inputs -->
         <Style Selector="TextBox, ComboBox">
-            <Setter Property="Background" Value="#101720"/>
-            <Setter Property="BorderBrush" Value="#202B38"/>
+            <Setter Property="Background" Value="#172230"/>
+            <Setter Property="BorderBrush" Value="#263242"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Foreground" Value="#E7EDF6"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="MinHeight" Value="32"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="TextBox:focus, ComboBox:focus, TextBox:pointerover, ComboBox:pointerover">
             <Setter Property="BorderBrush" Value="#3B82F6"/>
-            <Setter Property="Background" Value="#101720"/>
+            <Setter Property="Background" Value="#1C2633"/>
         </Style>
 
+        <!-- ToggleSwitch for modern boolean setting -->
+        <Style Selector="ToggleSwitch">
+            <Setter Property="Foreground" Value="#E7EDF6"/>
+            <Setter Property="OnContent" Value="{x:Null}"/>
+            <Setter Property="OffContent" Value="{x:Null}"/>
+        </Style>
+
+        <!-- Setting Card -->
+        <Style Selector="Border.SettingCard">
+            <Setter Property="Background" Value="#101720"/>
+            <Setter Property="BorderBrush" Value="#202B38"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+        </Style>
+        
+        <!-- Setting Row -->
+        <Style Selector="Grid.SettingRow">
+            <Setter Property="Margin" Value="0,12"/>
+        </Style>
+        <!-- First Setting Row (no top margin) -->
+        <Style Selector="Grid.SettingRow.First">
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+        <!-- Last Setting Row (no bottom margin) -->
+        <Style Selector="Grid.SettingRow.Last">
+            <Setter Property="Margin" Value="0,12,0,0"/>
+        </Style>
+        
+        <!-- Separator -->
+        <Style Selector="Border.Separator">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Background" Value="#202B38"/>
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+
+        <!-- Buttons -->
         <Style Selector="Button">
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="14,6"/>
             <Setter Property="Background" Value="#1C2633"/>
-            <Setter Property="BorderBrush" Value="#202B38"/>
+            <Setter Property="BorderBrush" Value="#2A3748"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Foreground" Value="#D8E1EC"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button:pointerover">
             <Setter Property="Background" Value="#263242"/>
@@ -11461,85 +11548,149 @@ namespace MiniZotero.Views
             <Setter Property="BorderBrush" Value="#3B82F6"/>
         </Style>
         <Style Selector="Button.Danger">
-            <Setter Property="Foreground" Value="#EF4444"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="#451A1A"/>
+            <Setter Property="BorderBrush" Value="#7F1D1D"/>
+            <Setter Property="Foreground" Value="#FCA5A5"/>
         </Style>
         <Style Selector="Button.Danger:pointerover">
-            <Setter Property="Background" Value="#451A1A"/>
-        </Style>
-
-        <Style Selector="CheckBox">
-            <Setter Property="Foreground" Value="#E7EDF6"/>
+            <Setter Property="Background" Value="#7F1D1D"/>
+            <Setter Property="BorderBrush" Value="#991B1B"/>
+            <Setter Property="Foreground" Value="#FECACA"/>
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="*,Auto" Margin="24">
-        <StackPanel Spacing="16">
+    <Grid RowDefinitions="Auto,*,Auto">
+        
+        <!-- Title Bar Area -->
+        <Border Grid.Row="0" Height="40" Background="Transparent" IsHitTestVisible="False">
             <TextBlock Text="Settings"
-                       FontSize="20"
+                       FontSize="13"
                        FontWeight="SemiBold"
-                       Margin="0,0,0,8"/>
+                       Foreground="#8795A8"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+        </Border>
 
-            <StackPanel Spacing="6">
-                <TextBlock Text="Watch folder" Classes="Label"/>
-                <TextBox Text="{Binding WatchFolderPath, Mode=TwoWay}"
-                         PlaceholderText="Folder path"
-                         Height="34"
-                         VerticalContentAlignment="Center"/>
+        <!-- Content Area -->
+        <ScrollViewer Grid.Row="1" Margin="24,10,24,0">
+            <StackPanel>
+                
+                <TextBlock Text="General" FontSize="16" FontWeight="SemiBold" Foreground="#E7EDF6" Margin="0,0,0,12"/>
+                
+                <!-- General Card -->
+                <Border Classes="SettingCard">
+                    <StackPanel>
+                        
+                        <Grid Classes="SettingRow First" ColumnDefinitions="*,200">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Theme mode" Classes="Label"/>
+                                <TextBlock Text="Choose application appearance" Classes="SubLabel"/>
+                            </StackPanel>
+                            <ComboBox Grid.Column="1" 
+                                      ItemsSource="{Binding ThemeModes}"
+                                      SelectedItem="{Binding ThemeMode, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch"/>
+                        </Grid>
+
+                        <Border Classes="Separator"/>
+
+                        <Grid Classes="SettingRow" ColumnDefinitions="*,200">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Default PDF zoom" Classes="Label"/>
+                                <TextBlock Text="Initial zoom level for documents" Classes="SubLabel"/>
+                            </StackPanel>
+                            <Grid Grid.Column="1" ColumnDefinitions="*,Auto">
+                                <TextBox Text="{Binding DefaultPdfZoomPercent, Mode=TwoWay}"
+                                         HorizontalAlignment="Stretch"/>
+                                <TextBlock Grid.Column="1" Text="%" Foreground="#8795A8" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Grid>
+
+                        <Border Classes="Separator"/>
+
+                        <Grid Classes="SettingRow Last" ColumnDefinitions="*,Auto">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Restore session" Classes="Label"/>
+                                <TextBlock Text="Reopen previous tabs on startup" Classes="SubLabel"/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" 
+                                          IsChecked="{Binding RestorePreviousSession, Mode=TwoWay}"
+                                          VerticalAlignment="Center"/>
+                        </Grid>
+
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Storage &amp; Data" FontSize="16" FontWeight="SemiBold" Foreground="#E7EDF6" Margin="0,8,0,12"/>
+
+                <!-- Storage Card -->
+                <Border Classes="SettingCard">
+                    <StackPanel>
+                        
+                        <Grid Classes="SettingRow First" ColumnDefinitions="*,200">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Watch folder" Classes="Label"/>
+                                <TextBlock Text="Directory to import PDFs from" Classes="SubLabel"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" 
+                                     Text="{Binding WatchFolderPath, Mode=TwoWay}"
+                                     PlaceholderText="Folder path"/>
+                        </Grid>
+
+                        <Border Classes="Separator"/>
+
+                        <Grid Classes="SettingRow" ColumnDefinitions="*,200">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Storage path" Classes="Label"/>
+                                <TextBlock Text="Where your library is stored" Classes="SubLabel"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" 
+                                     Text="{Binding StorageRootPath}"
+                                     IsReadOnly="True"
+                                     Foreground="#8D9AAB"
+                                     Background="#121A24"
+                                     BorderBrush="#1C2633"/>
+                        </Grid>
+
+                        <Border Classes="Separator"/>
+
+                        <Grid Classes="SettingRow Last" ColumnDefinitions="*,Auto">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Clear trash" Classes="Label" Foreground="#EF4444"/>
+                                <TextBlock Text="Permanently delete all items in trash" Classes="SubLabel"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" 
+                                    Content="Empty Trash"
+                                    Classes="Danger"
+                                    Command="{Binding ClearTrashCommand}"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
+
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
+        </ScrollViewer>
 
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                <StackPanel Spacing="6">
-                    <TextBlock Text="Theme" Classes="Label"/>
-                    <ComboBox ItemsSource="{Binding ThemeModes}"
-                              SelectedItem="{Binding ThemeMode, Mode=TwoWay}"
-                              Height="34"
-                              HorizontalAlignment="Stretch"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Spacing="6">
-                    <TextBlock Text="Default PDF zoom" Classes="Label"/>
-                    <TextBox Text="{Binding DefaultPdfZoomPercent, Mode=TwoWay}"
-                             Height="34"
-                             VerticalContentAlignment="Center"/>
+        <!-- Footer Area -->
+        <Border Grid.Row="2" Background="#101720" BorderBrush="#202B38" BorderThickness="0,1,0,0" Padding="24,16">
+            <Grid>
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="#10B981"
+                           FontSize="13"
+                           VerticalAlignment="Center"/>
+                
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="12">
+                    <Button Content="Cancel"
+                            Command="{Binding CancelCommand}"/>
+                    <Button Content="Save Changes"
+                            Classes="Primary"
+                            Command="{Binding SaveCommand}"/>
                 </StackPanel>
             </Grid>
-
-            <CheckBox Content="Restore previous session"
-                      IsChecked="{Binding RestorePreviousSession, Mode=TwoWay}"/>
-
-            <StackPanel Spacing="6">
-                <TextBlock Text="Storage path" Classes="Label"/>
-                <TextBox Text="{Binding StorageRootPath}"
-                         IsReadOnly="True"
-                         Height="34"
-                         VerticalContentAlignment="Center"
-                         Foreground="#8D9AAB"/>
-            </StackPanel>
-
-            <Button Content="Clear trash"
-                    Classes="Danger"
-                    HorizontalAlignment="Left"
-                    Margin="-14,8,0,0"
-                    Command="{Binding ClearTrashCommand}"/>
-
-            <TextBlock Text="{Binding StatusMessage}"
-                       Foreground="#10B981"
-                       FontSize="12"
-                       Margin="0,4,0,0"/>
-        </StackPanel>
-
-        <StackPanel Grid.Row="1"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Spacing="12">
-            <Button Content="Cancel"
-                    Command="{Binding CancelCommand}"/>
-            <Button Content="Save"
-                    Classes="Primary"
-                    Command="{Binding SaveCommand}"/>
-        </StackPanel>
+        </Border>
     </Grid>
 </Window>
 ``
