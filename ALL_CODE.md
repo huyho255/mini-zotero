@@ -1374,11 +1374,11 @@ _Skipped binary or large file. Size: 175875 bytes._
 
 ## MiniZotero/Assets/PdfJs/build/pdf.mjs
 
-_Skipped binary or large file. Size: 843985 bytes._
+_Skipped binary or large file. Size: 817035 bytes._
 
 ## MiniZotero/Assets/PdfJs/build/pdf.worker.mjs
 
-_Skipped binary or large file. Size: 2224281 bytes._
+_Skipped binary or large file. Size: 2161149 bytes._
 
 ## MiniZotero/Assets/PdfJs/cmaps/78-EUC-H.bcmap
 
@@ -5156,7 +5156,11 @@ namespace MiniZotero.Models
 
         public int DefaultPdfZoomPercent { get; set; } = 120;
 
-        public bool AutoOpenLastDocument { get; set; }
+        public bool RestorePreviousSession { get; set; }
+
+        public System.Collections.Generic.List<string> OpenDocumentIds { get; set; } = new();
+
+        public string? ActiveDocumentId { get; set; }
 
         public string? StorageRootPath { get; set; }
     }
@@ -6671,6 +6675,7 @@ namespace MiniZotero.Services
 
 ``csharp
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using MiniZotero.Models;
 
 namespace MiniZotero.Services
@@ -6692,6 +6697,8 @@ namespace MiniZotero.Services
         void Restore(DocumentItem document, IEnumerable<DocumentItem> documents);
 
         void DeleteForever(DocumentItem document, IList<DocumentItem> documents);
+
+        Task EmptyTrashAsync(IList<DocumentItem> documents);
 
         IEnumerable<DocumentItem> GetNavigationDocuments(IEnumerable<DocumentItem> documents, string? navigationName);
 
@@ -6847,6 +6854,7 @@ namespace MiniZotero.Services
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using MiniZotero.Models;
 using MiniZotero.Repositories;
 
@@ -6942,6 +6950,31 @@ namespace MiniZotero.Services
 
             _documentRepository.DeleteStoredPdfFile(document);
             documents.Remove(document);
+            SaveDocuments(documents);
+        }
+
+        public async Task EmptyTrashAsync(IList<DocumentItem> documents)
+        {
+            var trashItems = documents.Where(d => d.IsDeleted).ToList();
+            
+            if (trashItems.Count == 0)
+            {
+                return;
+            }
+
+            await Task.Run(() =>
+            {
+                foreach (var document in trashItems)
+                {
+                    _documentRepository.DeleteStoredPdfFile(document);
+                }
+            });
+
+            foreach (var document in trashItems)
+            {
+                documents.Remove(document);
+            }
+
             SaveDocuments(documents);
         }
 
@@ -7842,12 +7875,13 @@ namespace MiniZotero
 
 ``csharp
 using System;
+using CommunityToolkit.Mvvm.ComponentModel;
 using MiniZotero.Models;
 using MiniZotero.Services;
 
 namespace MiniZotero.ViewModels
 {
-    public sealed class DocumentTabViewModel : ViewModelBase
+    public partial class DocumentTabViewModel : ViewModelBase
     {
         public DocumentTabViewModel(
             DocumentItem document,
@@ -7864,6 +7898,12 @@ namespace MiniZotero.ViewModels
         public PdfViewerViewModel PdfViewer { get; }
 
         public string Title => Document.Title;
+
+        [ObservableProperty]
+        private bool _isActive;
+
+        [ObservableProperty]
+        private bool _isDragging;
     }
 }
 ``
@@ -7873,6 +7913,7 @@ namespace MiniZotero.ViewModels
 ``csharp
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MiniZotero.Models;
@@ -7884,6 +7925,7 @@ namespace MiniZotero.ViewModels
     {
         private readonly IApplicationServices _services;
         private readonly ILibraryService _libraryService;
+        private bool _isRestoringWorkspace;
 
         [ObservableProperty]
         private string _statusMessage = "Ready";
@@ -7945,6 +7987,8 @@ namespace MiniZotero.ViewModels
                 }
             };
 
+            Workspace.OpenTabs.CollectionChanged += (_, _) => SaveWorkspaceState();
+
             Workspace.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(TabWorkspaceViewModel.ActiveDocument))
@@ -7961,6 +8005,8 @@ namespace MiniZotero.ViewModels
                         Notes.OpenDocument(Workspace.ActiveDocument);
                         Workspace.ActivePdfViewer?.LoadHighlightsIntoViewer(Notes.Highlights);
                     }
+
+                    SaveWorkspaceState();
                 }
             };
 
@@ -7977,6 +8023,8 @@ namespace MiniZotero.ViewModels
                 ApplyDefaultZoomForUnreadDocument(document);
                 Workspace.OpenDocument(document);
             };
+
+            RestoreWorkspaceState();
         }
 
         public SidebarViewModel Sidebar { get; }
@@ -8027,15 +8075,64 @@ namespace MiniZotero.ViewModels
             document.LastZoomPercent = Math.Clamp(settings.DefaultPdfZoomPercent, 50, 400);
         }
 
-        private void ClearTrash()
+        private async Task ClearTrash()
         {
-            foreach (var document in Sidebar.Documents.Where(document => document.IsDeleted).ToList())
+            await _libraryService.EmptyTrashAsync(Sidebar.Documents);
+            Sidebar.RefreshAfterDocumentChange();
+            StatusMessage = "Trash cleared.";
+        }
+
+        private void RestoreWorkspaceState()
+        {
+            var settings = _services.SettingsRepository.LoadSettings();
+            if (!settings.RestorePreviousSession || settings.OpenDocumentIds.Count == 0)
             {
-                _libraryService.DeleteForever(document, Sidebar.Documents);
+                return;
             }
 
-            _libraryService.SaveDocuments(Sidebar.Documents);
-            StatusMessage = "Trash cleared.";
+            _isRestoringWorkspace = true;
+
+            try
+            {
+                var openDocuments = Sidebar.Documents
+                    .Where(d => settings.OpenDocumentIds.Contains(d.Id))
+                    .ToList();
+
+                foreach (var id in settings.OpenDocumentIds)
+                {
+                    var doc = openDocuments.FirstOrDefault(d => d.Id == id);
+                    if (doc is not null)
+                    {
+                        Workspace.OpenDocument(doc);
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(settings.ActiveDocumentId))
+                {
+                    var activeTab = Workspace.OpenTabs.FirstOrDefault(t => t.Document.Id == settings.ActiveDocumentId);
+                    if (activeTab is not null)
+                    {
+                        Workspace.SetActiveTabCommand.Execute(activeTab);
+                    }
+                }
+            }
+            finally
+            {
+                _isRestoringWorkspace = false;
+            }
+        }
+
+        private void SaveWorkspaceState()
+        {
+            if (_isRestoringWorkspace)
+            {
+                return;
+            }
+
+            var settings = _services.SettingsRepository.LoadSettings();
+            settings.OpenDocumentIds = Workspace.OpenTabs.Select(t => t.Document.Id).ToList();
+            settings.ActiveDocumentId = Workspace.ActiveDocument?.Id;
+            _services.SettingsRepository.SaveSettings(settings);
         }
     }
 }
@@ -8858,6 +8955,7 @@ namespace MiniZotero.ViewModels
 
 ``csharp
 using System;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MiniZotero.Models;
@@ -8869,14 +8967,14 @@ namespace MiniZotero.ViewModels
     {
         private readonly IAppSettingsRepository _settingsRepository;
         private readonly Action<AppSettings> _applySettings;
-        private readonly Action _clearTrash;
+        private readonly Func<Task> _clearTrash;
 
         public SettingsDialogViewModel(
             AppSettings settings,
             string storageRootPath,
             IAppSettingsRepository settingsRepository,
             Action<AppSettings> applySettings,
-            Action clearTrash)
+            Func<Task> clearTrash)
         {
             _settingsRepository = settingsRepository;
             _applySettings = applySettings;
@@ -8889,7 +8987,7 @@ namespace MiniZotero.ViewModels
             DefaultPdfZoomPercent = settings.DefaultPdfZoomPercent <= 0
                 ? 120
                 : settings.DefaultPdfZoomPercent;
-            AutoOpenLastDocument = settings.AutoOpenLastDocument;
+            RestorePreviousSession = settings.RestorePreviousSession;
             StorageRootPath = storageRootPath;
         }
 
@@ -8903,7 +9001,7 @@ namespace MiniZotero.ViewModels
         private int _defaultPdfZoomPercent = 120;
 
         [ObservableProperty]
-        private bool _autoOpenLastDocument;
+        private bool _restorePreviousSession;
 
         [ObservableProperty]
         private string _storageRootPath = string.Empty;
@@ -8918,16 +9016,14 @@ namespace MiniZotero.ViewModels
         [RelayCommand]
         private void Save()
         {
-            var settings = new AppSettings
-            {
-                WatchFolderPath = string.IsNullOrWhiteSpace(WatchFolderPath)
-                    ? null
-                    : WatchFolderPath.Trim(),
-                ThemeMode = string.IsNullOrWhiteSpace(ThemeMode) ? "System" : ThemeMode,
-                DefaultPdfZoomPercent = Math.Clamp(DefaultPdfZoomPercent, 50, 400),
-                AutoOpenLastDocument = AutoOpenLastDocument,
-                StorageRootPath = StorageRootPath
-            };
+            var settings = _settingsRepository.LoadSettings();
+            
+            settings.WatchFolderPath = string.IsNullOrWhiteSpace(WatchFolderPath)
+                ? null
+                : WatchFolderPath.Trim();
+            settings.ThemeMode = string.IsNullOrWhiteSpace(ThemeMode) ? "System" : ThemeMode;
+            settings.DefaultPdfZoomPercent = Math.Clamp(DefaultPdfZoomPercent, 50, 400);
+            settings.RestorePreviousSession = RestorePreviousSession;
 
             _settingsRepository.SaveSettings(settings);
             _applySettings(settings);
@@ -8942,9 +9038,9 @@ namespace MiniZotero.ViewModels
         }
 
         [RelayCommand]
-        private void ClearTrash()
+        private async Task ClearTrash()
         {
-            _clearTrash();
+            await _clearTrash();
             StatusMessage = "Trash cleared.";
         }
     }
@@ -9386,10 +9482,9 @@ namespace MiniZotero.ViewModels
 
             WatchFolderPath = folderPath;
 
-            _settingsRepository.SaveSettings(new AppSettings
-            {
-                WatchFolderPath = folderPath
-            });
+            var settings = _settingsRepository.LoadSettings();
+            settings.WatchFolderPath = folderPath;
+            _settingsRepository.SaveSettings(settings);
 
             _watchFolderService.Start(folderPath);
             StatusMessage = $"Watching {Path.GetFileName(folderPath)}.";
@@ -9733,7 +9828,7 @@ namespace MiniZotero.ViewModels
             RefreshAfterDocumentChange(rebuildTags);
         }
 
-        private void RefreshAfterDocumentChange(bool rebuildTags = true)
+        public void RefreshAfterDocumentChange(bool rebuildTags = true)
         {
             if (rebuildTags)
             {
@@ -10030,6 +10125,19 @@ namespace MiniZotero.ViewModels
         [NotifyPropertyChangedFor(nameof(ActiveDocumentStarIcon))]
         private DocumentTabViewModel? _activeTab;
 
+        partial void OnActiveTabChanged(DocumentTabViewModel? oldValue, DocumentTabViewModel? newValue)
+        {
+            if (oldValue is not null)
+            {
+                oldValue.IsActive = false;
+            }
+
+            if (newValue is not null)
+            {
+                newValue.IsActive = true;
+            }
+        }
+
         public ObservableCollection<DocumentTabViewModel> OpenTabs { get; } = new();
 
         public DocumentItem? ActiveDocument => ActiveTab?.Document;
@@ -10096,6 +10204,23 @@ namespace MiniZotero.ViewModels
             {
                 ActiveTab = tab;
             }
+        }
+
+        public void MoveTab(DocumentTabViewModel tab, int newIndex)
+        {
+            if (tab is null || newIndex < 0 || newIndex >= OpenTabs.Count)
+            {
+                return;
+            }
+
+            var oldIndex = OpenTabs.IndexOf(tab);
+            if (oldIndex < 0 || oldIndex == newIndex)
+            {
+                return;
+            }
+
+            OpenTabs.Move(oldIndex, newIndex);
+            ActiveTab = tab;
         }
 
         [RelayCommand]
@@ -10217,6 +10342,16 @@ namespace MiniZotero.ViewModels
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
+        <Style Selector="ListBox.SearchResultsList ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.SearchResultsList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
         <Style Selector="ListBox.SearchResultsList ListBoxItem:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1C2633"/>
             <Setter Property="CornerRadius" Value="6"/>
@@ -10225,9 +10360,22 @@ namespace MiniZotero.ViewModels
             <Setter Property="Background" Value="#263242"/>
             <Setter Property="CornerRadius" Value="6"/>
         </Style>
+        <Style Selector="Border.drag">
+            <Setter Property="Opacity" Value="0.5"/>
+            <Setter Property="Background" Value="#E2E8F0"/>
+        </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="48,*,30" ColumnDefinitions="224,*,492">
+    <Grid RowDefinitions="48,*,30" ColumnDefinitions="224,*,492"
+          DragDrop.AllowDrop="True">
+
+        <!-- Lag-free Drag Visual Layer -->
+        <Canvas x:Name="DragVisualLayer"
+                Grid.Row="0" Grid.RowSpan="3"
+                Grid.Column="0" Grid.ColumnSpan="3"
+                IsHitTestVisible="False"
+                ZIndex="999"/>
+
         <views:SidebarView Grid.Row="0"
                            Grid.RowSpan="3"
                            Grid.Column="0"
@@ -10246,13 +10394,17 @@ namespace MiniZotero.ViewModels
                         Command="{Binding Sidebar.ImportPdfFilesCommand}"
                         VerticalAlignment="Center"/>
 
+                <Grid Grid.Column="1" VerticalAlignment="Bottom" Height="46">
                     <ScrollViewer x:Name="TabStripScrollViewer"
-                                  Grid.Column="1"
+                                  Background="Transparent"
                                   HorizontalScrollBarVisibility="Hidden"
                                   VerticalScrollBarVisibility="Disabled"
                                   PointerWheelChanged="OnTabStripPointerWheelChanged"
-                                  Height="46"
-                                  VerticalAlignment="Bottom">
+                                  DragDrop.AllowDrop="True"
+                                  DragDrop.Drop="OnTabStripDrop"
+                                  DragDrop.DragOver="OnTabStripDragOver"
+                                  DragDrop.DragEnter="OnTabStripDragEnter"
+                                  DragDrop.DragLeave="OnTabStripDragLeave">
                         <ItemsControl ItemsSource="{Binding Workspace.OpenTabs}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -10267,41 +10419,35 @@ namespace MiniZotero.ViewModels
                                             CornerRadius="7,7,0,0"
                                             MinWidth="210"
                                             Height="34"
-                                            Margin="0,0,2,0">
+                                            Margin="0,0,2,0"
+                                            PointerPressed="OnTabPointerPressed"
+                                            PointerMoved="OnTabPointerMoved"
+                                            Classes.drag="{Binding IsDragging}">
                                         <Border.ContextMenu>
                                             <ContextMenu>
                                                 <MenuItem Header="Close" Command="{Binding #Root.DataContext.Workspace.CloseDocumentTabCommand}" CommandParameter="{Binding}" />
                                                 <MenuItem Header="Close All" Command="{Binding #Root.DataContext.Workspace.CloseAllTabsCommand}" />
                                             </ContextMenu>
                                         </Border.ContextMenu>
-                                        <Grid ColumnDefinitions="Auto,*,Auto">
-                                            <Button Grid.ColumnSpan="2"
-                                                    Background="Transparent"
-                                                    BorderThickness="0"
-                                                    Padding="10,0,0,0"
-                                                    HorizontalAlignment="Stretch"
-                                                    HorizontalContentAlignment="Stretch"
-                                                    Command="{Binding #Root.DataContext.Workspace.SetActiveTabCommand}"
-                                                    CommandParameter="{Binding}">
-                                                <Grid ColumnDefinitions="Auto,*">
-                                                    <Border Width="16" Height="18" CornerRadius="3" Background="#EF4444" VerticalAlignment="Center">
-                                                        <TextBlock Text="PDF"
-                                                                   Foreground="White"
-                                                                   FontSize="7"
-                                                                   FontWeight="Bold"
-                                                                   HorizontalAlignment="Center"
-                                                                   VerticalAlignment="Center"/>
-                                                    </Border>
-                                                    <TextBlock Grid.Column="1"
-                                                               Text="{Binding Title}"
-                                                               Foreground="#172033"
-                                                               FontSize="12"
-                                                               FontWeight="SemiBold"
-                                                               Margin="8,0"
-                                                               VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </Grid>
-                                            </Button>
+                                        <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
+                                            <Grid ColumnDefinitions="Auto,*" Grid.ColumnSpan="2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                <Border Width="16" Height="18" CornerRadius="3" Background="#EF4444" VerticalAlignment="Center">
+                                                    <TextBlock Text="PDF"
+                                                               Foreground="White"
+                                                               FontSize="7"
+                                                               FontWeight="Bold"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Title}"
+                                                           Foreground="#172033"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           Margin="8,0"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
                                             <Button Grid.Column="2"
                                                     Content="&#xE711;"
                                                     FontFamily="Segoe MDL2 Assets"
@@ -10319,6 +10465,16 @@ namespace MiniZotero.ViewModels
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
+
+                    <Border x:Name="TabInsertionIndicator"
+                            Width="2"
+                            Background="#3B82F6"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Stretch"
+                            Margin="0,12,0,0"
+                            IsVisible="False"
+                            IsHitTestVisible="False"/>
+                </Grid>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Border Background="#172230" CornerRadius="7" Height="30" Width="48">
@@ -10355,9 +10511,28 @@ namespace MiniZotero.ViewModels
             </Grid>
         </Border>
 
-        <views:TabWorkspaceView Grid.Row="1"
+        <views:TabWorkspaceView x:Name="TabWorkspace"
+                                Grid.Row="1"
                                 Grid.Column="1"
                                 DataContext="{Binding Workspace}"/>
+
+        <Border x:Name="DropZoneOverlay"
+                Grid.Row="1" Grid.Column="1"
+                Background="#1E293B"
+                BorderBrush="#3B82F6"
+                BorderThickness="2"
+                CornerRadius="8"
+                Margin="16"
+                IsVisible="False"
+                IsHitTestVisible="True"
+                DragDrop.AllowDrop="True"
+                DragDrop.DragOver="OnCenterDragOver"
+                DragDrop.Drop="OnCenterDrop">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                <TextBlock Text="&#xE8B5;" FontFamily="Segoe MDL2 Assets" FontSize="48" Foreground="#64748B" HorizontalAlignment="Center"/>
+                <TextBlock Text="Drop PDF here to open" FontSize="18" Foreground="#94A3B8" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
 
         <views:NotePreviewPanelView Grid.Row="1"
                                     Grid.Column="2"
@@ -10473,6 +10648,9 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Media;
+using Avalonia.Layout;
+using Avalonia.Interactivity;
 using MiniZotero.ViewModels;
 
 namespace MiniZotero.Views
@@ -10483,6 +10661,83 @@ namespace MiniZotero.Views
         {
             InitializeComponent();
             DataContextChanged += OnDataContextChanged;
+            AddHandler(DragDrop.DragOverEvent, OnGlobalDragOver, RoutingStrategies.Tunnel);
+        }
+
+        private Point _currentDragVisualOffset;
+
+        public void ShowDragVisual(string title, Point offset, bool isSidebarDrag)
+        {
+            ClearDragVisual();
+            _currentDragVisualOffset = offset;
+            
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#1E293B")),
+                BorderBrush = new SolidColorBrush(Color.Parse("#334155")),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 8),
+                Child = new TextBlock
+                {
+                    Text = title,
+                    Foreground = new SolidColorBrush(Color.Parse("#F8FAFC")),
+                    FontSize = 12,
+                    FontWeight = FontWeight.SemiBold
+                },
+                Opacity = 0.85
+            };
+            
+            DragVisualLayer.Children.Add(border);
+
+            if (isSidebarDrag)
+            {
+                TabWorkspace.IsVisible = false;
+                DropZoneOverlay.IsVisible = true;
+            }
+        }
+
+        public void ClearDragVisual()
+        {
+            DragVisualLayer.Children.Clear();
+            TabWorkspace.IsVisible = true;
+            DropZoneOverlay.IsVisible = false;
+        }
+
+        private void OnGlobalDragOver(object? sender, DragEventArgs e)
+        {
+            if (DragVisualLayer.Children.Count > 0)
+            {
+                var visual = DragVisualLayer.Children[0];
+                var pos = e.GetPosition(DragVisualLayer);
+                Canvas.SetLeft(visual, pos.X - _currentDragVisualOffset.X);
+                Canvas.SetTop(visual, pos.Y - _currentDragVisualOffset.Y);
+            }
+        }
+
+        private void OnCenterDragOver(object? sender, DragEventArgs e)
+        {
+            if (e.DataTransfer.Contains(SidebarView.DocumentItemFormat))
+            {
+                e.DragEffects = DragDropEffects.Copy;
+                e.Handled = true;
+            }
+            else
+            {
+                e.DragEffects = DragDropEffects.None;
+            }
+        }
+
+        private void OnCenterDrop(object? sender, DragEventArgs e)
+        {
+            if (BoundViewModel is null) return;
+
+            var document = e.DataTransfer.TryGetValue(SidebarView.DocumentItemFormat);
+            if (document != null)
+            {
+                BoundViewModel.Workspace.OpenDocument(document);
+                e.Handled = true;
+            }
         }
 
         private MainWindowViewModel? BoundViewModel { get; set; }
@@ -10535,6 +10790,119 @@ namespace MiniZotero.Views
                 nextOffset,
                 TabStripScrollViewer.Offset.Y);
             e.Handled = true;
+        }
+
+        public static readonly DataFormat<DocumentTabViewModel> DocumentTabFormat = DataFormat.CreateInProcessFormat<DocumentTabViewModel>("DocumentTabViewModel");
+
+        private PointerPressedEventArgs? _tabDragStartEventArgs;
+        private bool _isTabDragging;
+
+        private void OnTabPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            var point = e.GetCurrentPoint(sender as Control);
+            if (point.Properties.IsLeftButtonPressed)
+            {
+                _tabDragStartEventArgs = e;
+                _isTabDragging = false;
+
+                if (sender is Control { DataContext: DocumentTabViewModel tabViewModel })
+                {
+                    BoundViewModel?.Workspace.SetActiveTabCommand.Execute(tabViewModel);
+                }
+            }
+        }
+
+        private async void OnTabPointerMoved(object? sender, PointerEventArgs e)
+        {
+            if (e.GetCurrentPoint(sender as Control).Properties.IsLeftButtonPressed && !_isTabDragging && _tabDragStartEventArgs != null)
+            {
+                var currentPoint = e.GetCurrentPoint(sender as Control).Position;
+                var startPoint = _tabDragStartEventArgs.GetCurrentPoint(sender as Control).Position;
+                if (Math.Abs(currentPoint.X - startPoint.X) > 3 || Math.Abs(currentPoint.Y - startPoint.Y) > 3)
+                {
+                    _isTabDragging = true;
+                    if (sender is Control { DataContext: DocumentTabViewModel tabViewModel })
+                    {
+                        var data = new DataTransfer();
+                        data.Add(DataTransferItem.Create(DocumentTabFormat, tabViewModel));
+
+                        tabViewModel.IsDragging = true;
+                        ShowDragVisual(tabViewModel.Title, startPoint, false);
+
+                        await DragDrop.DoDragDropAsync(_tabDragStartEventArgs, data, DragDropEffects.Move);
+
+                        tabViewModel.IsDragging = false;
+                        ClearDragVisual();
+                    }
+                }
+            }
+        }
+
+        private void OnTabStripDragEnter(object? sender, DragEventArgs e)
+        {
+            if (e.DataTransfer.Contains(SidebarView.DocumentItemFormat) || e.DataTransfer.Contains(DocumentTabFormat))
+            {
+                TabStripScrollViewer.Background = new SolidColorBrush(Color.Parse("#1A2433"));
+            }
+        }
+
+        private void OnTabStripDragLeave(object? sender, DragEventArgs e)
+        {
+            TabStripScrollViewer.Background = Brushes.Transparent;
+            TabInsertionIndicator.IsVisible = false;
+        }
+
+        private void OnTabStripDragOver(object? sender, DragEventArgs e)
+        {
+            if (e.DataTransfer.Contains(SidebarView.DocumentItemFormat) || e.DataTransfer.Contains(DocumentTabFormat))
+            {
+                e.DragEffects = e.DataTransfer.Contains(SidebarView.DocumentItemFormat) ? DragDropEffects.Copy : DragDropEffects.Move;
+                e.Handled = true;
+
+                if (e.DataTransfer.Contains(DocumentTabFormat))
+                {
+                    var position = e.GetPosition(TabStripScrollViewer);
+                    var newIndex = (int)((position.X + TabStripScrollViewer.Offset.X) / 212);
+                    var maxIndex = BoundViewModel?.Workspace.OpenTabs.Count ?? 0;
+                    if (newIndex > maxIndex) newIndex = maxIndex;
+
+                    var caretX = newIndex * 212 - TabStripScrollViewer.Offset.X;
+                    TabInsertionIndicator.Margin = new Thickness(caretX, 12, 0, 0);
+                    TabInsertionIndicator.IsVisible = true;
+                }
+            }
+            else
+            {
+                e.DragEffects = DragDropEffects.None;
+            }
+        }
+
+        private void OnTabStripDrop(object? sender, DragEventArgs e)
+        {
+            TabStripScrollViewer.Background = Brushes.Transparent;
+            TabInsertionIndicator.IsVisible = false;
+
+            if (BoundViewModel is null)
+            {
+                return;
+            }
+
+            var document = e.DataTransfer.TryGetValue(SidebarView.DocumentItemFormat);
+            if (document != null)
+            {
+                BoundViewModel.Workspace.OpenDocument(document);
+                e.Handled = true;
+                return;
+            }
+
+            var tab = e.DataTransfer.TryGetValue(DocumentTabFormat);
+            if (tab != null)
+            {
+                var position = e.GetPosition(TabStripScrollViewer);
+                var newIndex = (int)((position.X + TabStripScrollViewer.Offset.X) / 212);
+                BoundViewModel.Workspace.MoveTab(tab, newIndex);
+                e.Handled = true;
+            }
         }
     }
 }
@@ -11153,30 +11521,7 @@ namespace MiniZotero.Views
              x:DataType="vm:PdfViewerViewModel">
 
     <Grid Background="#E6EBF2">
-        <Border Background="#F8FAFC"
-                BorderBrush="#D5DDE7"
-                BorderThickness="1"
-                CornerRadius="8"
-                Margin="20"
-                IsVisible="{Binding IsEmptyViewVisible}">
-            <StackPanel HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Spacing="8"
-                        Width="360">
-                <TextBlock Text="{Binding EmptyTitle}"
-                           Foreground="#172033"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           HorizontalAlignment="Center"/>
-                <TextBlock Text="{Binding EmptyMessage}"
-                           Foreground="#7C8A9E"
-                           FontSize="13"
-                           TextWrapping="Wrap"
-                           TextAlignment="Center"/>
-            </StackPanel>
-        </Border>
-
-        <Grid IsVisible="{Binding HasDocumentLoaded}" RowDefinitions="*,28">
+        <Grid RowDefinitions="*,28">
             <Border Grid.Row="0"
                     Background="#E6EBF2">
                 <NativeWebView x:Name="PdfWebView"
@@ -11314,68 +11659,132 @@ namespace MiniZotero.Views
         x:Class="MiniZotero.Views.SettingsDialog"
         x:DataType="vm:SettingsDialogViewModel"
         Width="480"
-        Height="420"
+        Height="440"
         MinWidth="440"
-        MinHeight="380"
+        MinHeight="400"
         Title="Settings"
-        Background="#F8FAFC"
-        Foreground="#111827"
+        Background="#0B1118"
+        Foreground="#E7EDF6"
+        FontFamily="Segoe UI"
         WindowStartupLocation="CenterOwner">
 
-    <Grid RowDefinitions="*,Auto" Margin="18">
-        <StackPanel Spacing="14">
-            <TextBlock Text="Settings"
-                       FontSize="18"
-                       FontWeight="SemiBold"/>
+    <Window.Styles>
+        <Style Selector="TextBlock.Label">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#8D9AAB"/>
+        </Style>
 
-            <StackPanel Spacing="5">
-                <TextBlock Text="Watch folder" FontSize="12" Foreground="#475569"/>
+        <Style Selector="TextBox, ComboBox">
+            <Setter Property="Background" Value="#101720"/>
+            <Setter Property="BorderBrush" Value="#202B38"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="#E7EDF6"/>
+        </Style>
+        <Style Selector="TextBox:focus, ComboBox:focus, TextBox:pointerover, ComboBox:pointerover">
+            <Setter Property="BorderBrush" Value="#3B82F6"/>
+            <Setter Property="Background" Value="#101720"/>
+        </Style>
+
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Background" Value="#1C2633"/>
+            <Setter Property="BorderBrush" Value="#202B38"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#D8E1EC"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#263242"/>
+        </Style>
+        <Style Selector="Button.Primary">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="Button.Primary:pointerover">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="BorderBrush" Value="#3B82F6"/>
+        </Style>
+        <Style Selector="Button.Danger">
+            <Setter Property="Foreground" Value="#EF4444"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.Danger:pointerover">
+            <Setter Property="Background" Value="#451A1A"/>
+        </Style>
+
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#E7EDF6"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto" Margin="24">
+        <StackPanel Spacing="16">
+            <TextBlock Text="Settings"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,8"/>
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="Watch folder" Classes="Label"/>
                 <TextBox Text="{Binding WatchFolderPath, Mode=TwoWay}"
                          PlaceholderText="Folder path"
-                         Height="32"/>
+                         Height="34"
+                         VerticalContentAlignment="Center"/>
             </StackPanel>
 
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                <StackPanel Spacing="5">
-                    <TextBlock Text="Theme" FontSize="12" Foreground="#475569"/>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Theme" Classes="Label"/>
                     <ComboBox ItemsSource="{Binding ThemeModes}"
                               SelectedItem="{Binding ThemeMode, Mode=TwoWay}"
-                              Height="32"/>
+                              Height="34"
+                              HorizontalAlignment="Stretch"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Spacing="5">
-                    <TextBlock Text="Default PDF zoom" FontSize="12" Foreground="#475569"/>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Default PDF zoom" Classes="Label"/>
                     <TextBox Text="{Binding DefaultPdfZoomPercent, Mode=TwoWay}"
-                             Height="32"/>
+                             Height="34"
+                             VerticalContentAlignment="Center"/>
                 </StackPanel>
             </Grid>
 
-            <CheckBox Content="Auto-open last document"
-                      IsChecked="{Binding AutoOpenLastDocument, Mode=TwoWay}"/>
+            <CheckBox Content="Restore previous session"
+                      IsChecked="{Binding RestorePreviousSession, Mode=TwoWay}"/>
 
-            <StackPanel Spacing="5">
-                <TextBlock Text="Storage path" FontSize="12" Foreground="#475569"/>
+            <StackPanel Spacing="6">
+                <TextBlock Text="Storage path" Classes="Label"/>
                 <TextBox Text="{Binding StorageRootPath}"
                          IsReadOnly="True"
-                         Height="32"/>
+                         Height="34"
+                         VerticalContentAlignment="Center"
+                         Foreground="#8D9AAB"/>
             </StackPanel>
 
             <Button Content="Clear trash"
+                    Classes="Danger"
                     HorizontalAlignment="Left"
+                    Margin="-14,8,0,0"
                     Command="{Binding ClearTrashCommand}"/>
 
             <TextBlock Text="{Binding StatusMessage}"
-                       Foreground="#64748B"
-                       FontSize="12"/>
+                       Foreground="#10B981"
+                       FontSize="12"
+                       Margin="0,4,0,0"/>
         </StackPanel>
 
         <StackPanel Grid.Row="1"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    Spacing="8">
+                    Spacing="12">
             <Button Content="Cancel"
                     Command="{Binding CancelCommand}"/>
             <Button Content="Save"
+                    Classes="Primary"
                     Command="{Binding SaveCommand}"/>
         </StackPanel>
     </Grid>
@@ -11500,6 +11909,16 @@ namespace MiniZotero.Views
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
+        <Style Selector="ListBox.NavigationList ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.NavigationList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
         <Style Selector="ListBox.NavigationList ListBoxItem:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1C2633"/>
             <Setter Property="CornerRadius" Value="6"/>
@@ -11522,6 +11941,16 @@ namespace MiniZotero.Views
             <Setter Property="Margin" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
+        <Style Selector="ListBox.DocumentList ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.DocumentList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
         <Style Selector="ListBox.DocumentList ListBoxItem:selected /template/ ContentPresenter">
             <Setter Property="Background" Value="#5D2CCB"/>
             <Setter Property="CornerRadius" Value="5"/>
@@ -11543,6 +11972,16 @@ namespace MiniZotero.Views
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.SmartCollectionList ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.SmartCollectionList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
         </Style>
         <Style Selector="ListBox.SmartCollectionList ListBoxItem:selected /template/ ContentPresenter">
             <Setter Property="Background" Value="#5D2CCB"/>
@@ -11569,6 +12008,14 @@ namespace MiniZotero.Views
         <Style Selector="ListBox.TagList ListBoxItem /template/ ContentPresenter">
             <Setter Property="Background" Value="#202B39"/>
             <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.TagList ListBoxItem:pressed /template/ ContentPresenter">
+            <Setter Property="RenderTransform" Value="scale(0.95)" />
         </Style>
         <Style Selector="ListBox.TagList ListBoxItem:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#2A3646"/>
@@ -11725,7 +12172,11 @@ namespace MiniZotero.Views
                                  SelectedItem="{Binding SelectedExplorerItem, Mode=TwoWay}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:DocumentExplorerItem">
-                                    <Border Padding="2,0" DoubleTapped="OnDocumentDoubleTapped" Background="Transparent">
+                                    <Border Padding="2,0"
+                                            DoubleTapped="OnDocumentDoubleTapped"
+                                            PointerPressed="OnDocumentPointerPressed"
+                                            PointerMoved="OnDocumentPointerMoved"
+                                            Background="Transparent">
                                         <Grid Height="24" ColumnDefinitions="Auto,Auto,*,Auto">
                                             <Button Classes="SidebarIconButton"
                                                     Content="{Binding ChevronIcon}"
@@ -12008,23 +12459,71 @@ namespace MiniZotero.Views
 ## MiniZotero/Views/SidebarView.axaml.cs
 
 ``csharp
+using System;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 
 namespace MiniZotero.Views
 {
     public partial class SidebarView : UserControl
     {
+        public static readonly DataFormat<Models.DocumentItem> DocumentItemFormat = DataFormat.CreateInProcessFormat<Models.DocumentItem>("DocumentItem");
+
+        private PointerPressedEventArgs? _dragStartEventArgs;
+        private bool _isDragging;
+
         public SidebarView()
         {
             InitializeComponent();
         }
 
-        private void OnDocumentDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
+        private void OnDocumentDoubleTapped(object? sender, TappedEventArgs e)
         {
-            if (sender is Avalonia.Controls.Control { DataContext: ViewModels.DocumentExplorerItem { IsDocument: true } item } &&
+            if (sender is Control { DataContext: ViewModels.DocumentExplorerItem { IsDocument: true } item } &&
                 DataContext is ViewModels.SidebarViewModel vm)
             {
                 vm.RequestOpenDocumentCommand.Execute(item.Document);
+            }
+        }
+
+        private void OnDocumentPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            var point = e.GetCurrentPoint(sender as Control);
+            if (point.Properties.IsLeftButtonPressed)
+            {
+                _dragStartEventArgs = e;
+                _isDragging = false;
+            }
+        }
+
+        private async void OnDocumentPointerMoved(object? sender, PointerEventArgs e)
+        {
+            if (e.GetCurrentPoint(sender as Control).Properties.IsLeftButtonPressed && !_isDragging && _dragStartEventArgs != null)
+            {
+                var currentPoint = e.GetCurrentPoint(sender as Control).Position;
+                var startPoint = _dragStartEventArgs.GetCurrentPoint(sender as Control).Position;
+                if (Math.Abs(currentPoint.X - startPoint.X) > 3 || Math.Abs(currentPoint.Y - startPoint.Y) > 3)
+                {
+                    _isDragging = true;
+                    if (sender is Control { DataContext: ViewModels.DocumentExplorerItem { IsDocument: true } item })
+                    {
+                        var data = new DataTransfer();
+                        data.Add(DataTransferItem.Create(DocumentItemFormat, item.Document));
+
+                        if (TopLevel.GetTopLevel(this) is MainWindow mainWindow)
+                        {
+                            mainWindow.ShowDragVisual(item.Document.Title, startPoint, true);
+                        }
+
+                        await DragDrop.DoDragDropAsync(_dragStartEventArgs, data, DragDropEffects.Copy | DragDropEffects.Move);
+
+                        if (TopLevel.GetTopLevel(this) is MainWindow mw)
+                        {
+                            mw.ClearDragVisual();
+                        }
+                    }
+                }
             }
         }
     }
@@ -12325,9 +12824,45 @@ namespace MiniZotero.Views
             </StackPanel>
         </Border>
 
-        <views:PdfViewerView Grid.Row="1"
-                             Grid.Column="1"
-                             DataContext="{Binding ActiveTab.PdfViewer}"/>
+        <Grid Grid.Row="1" Grid.Column="1">
+            <Border Background="#F8FAFC"
+                    BorderBrush="#D5DDE7"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Margin="20"
+                    IsVisible="{Binding IsEmptyViewVisible}">
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="8"
+                            Width="360">
+                    <TextBlock Text="Select a document to view"
+                               Foreground="#172033"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Import a PDF file from the sidebar."
+                               Foreground="#7C8A9E"
+                               FontSize="13"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding OpenTabs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Grid/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DocumentTabViewModel">
+                        <Grid IsVisible="{Binding IsActive}">
+                            <views:PdfViewerView DataContext="{Binding PdfViewer}" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
     </Grid>
 </UserControl>
 ``

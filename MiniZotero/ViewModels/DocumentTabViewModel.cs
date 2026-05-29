@@ -1,10 +1,11 @@
 using System;
+using CommunityToolkit.Mvvm.ComponentModel;
 using MiniZotero.Models;
 using MiniZotero.Services;
 
 namespace MiniZotero.ViewModels
 {
-    public sealed class DocumentTabViewModel : ViewModelBase
+    public partial class DocumentTabViewModel : ViewModelBase
     {
         public DocumentTabViewModel(
             DocumentItem document,
@@ -21,5 +22,11 @@ namespace MiniZotero.ViewModels
         public PdfViewerViewModel PdfViewer { get; }
 
         public string Title => Document.Title;
+
+        [ObservableProperty]
+        private bool _isActive;
+
+        [ObservableProperty]
+        private bool _isDragging;
     }
 }

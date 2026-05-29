@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using MiniZotero.Models;
 using MiniZotero.Repositories;
 
@@ -96,6 +97,31 @@ namespace MiniZotero.Services
 
             _documentRepository.DeleteStoredPdfFile(document);
             documents.Remove(document);
+            SaveDocuments(documents);
+        }
+
+        public async Task EmptyTrashAsync(IList<DocumentItem> documents)
+        {
+            var trashItems = documents.Where(d => d.IsDeleted).ToList();
+            
+            if (trashItems.Count == 0)
+            {
+                return;
+            }
+
+            await Task.Run(() =>
+            {
+                foreach (var document in trashItems)
+                {
+                    _documentRepository.DeleteStoredPdfFile(document);
+                }
+            });
+
+            foreach (var document in trashItems)
+            {
+                documents.Remove(document);
+            }
+
             SaveDocuments(documents);
         }
 
