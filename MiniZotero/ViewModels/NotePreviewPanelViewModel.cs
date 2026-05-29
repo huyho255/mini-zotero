@@ -82,9 +82,31 @@ namespace MiniZotero.ViewModels
 
         public bool IsHighlightEmptyViewVisible => HasDocument && !HasHighlights;
 
-        public string NoteZoomDisplayText => $"{NoteZoomPercent}%";
+        public string NoteZoomDisplayText
+        {
+            get => $"{NoteZoomPercent}%";
+            set
+            {
+                if (int.TryParse(value.Replace("%", "").Trim(), out var percent))
+                {
+                    NoteZoomPercent = Math.Clamp(percent, MinimumZoomPercent, MaximumZoomPercent);
+                }
+                OnPropertyChanged(nameof(NoteZoomDisplayText));
+            }
+        }
 
-        public string PreviewZoomDisplayText => $"{PreviewZoomPercent}%";
+        public string PreviewZoomDisplayText
+        {
+            get => $"{PreviewZoomPercent}%";
+            set
+            {
+                if (int.TryParse(value.Replace("%", "").Trim(), out var percent))
+                {
+                    PreviewZoomPercent = Math.Clamp(percent, MinimumZoomPercent, MaximumZoomPercent);
+                }
+                OnPropertyChanged(nameof(PreviewZoomDisplayText));
+            }
+        }
 
         public double NoteEditorFontSize => BaseNoteFontSize * NoteZoomPercent / 100.0;
 
