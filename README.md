@@ -61,6 +61,10 @@ Build the app:
 dotnet build .\MiniZotero\MiniZotero.csproj
 ```
 
+## App preview
+
+![MiniZotero app preview](MiniZotero/Assets/appimage.png)
+
 ## Logo and credit
 
 ![MiniZotero logo](MiniZotero/Assets/M_logo_cropped.png)
