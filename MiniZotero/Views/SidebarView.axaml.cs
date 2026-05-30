@@ -1,7 +1,10 @@
 using System;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace MiniZotero.Views
 {
@@ -93,6 +96,38 @@ namespace MiniZotero.Views
             {
                 vm.CommitRenameCollectionCommand?.Execute(item);
             }
+        }
+
+        private void OnCollectionDoubleTapped(object? sender, TappedEventArgs e)
+        {
+            StartCollectionRename(sender);
+        }
+
+        private void OnRenameCollectionMenuItemClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            StartCollectionRename(sender);
+        }
+
+        private void StartCollectionRename(object? sender)
+        {
+            if (sender is not Control control ||
+                control.DataContext is not Models.CollectionItem item ||
+                DataContext is not ViewModels.SidebarViewModel vm)
+            {
+                return;
+            }
+
+            vm.StartRenameCollectionCommand.Execute(item);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                var textBox = this.GetVisualDescendants()
+                    .OfType<TextBox>()
+                    .FirstOrDefault(candidate => candidate.DataContext == item);
+
+                textBox?.Focus();
+                textBox?.SelectAll();
+            });
         }
     }
 }

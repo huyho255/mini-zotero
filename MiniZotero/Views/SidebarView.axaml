@@ -293,7 +293,30 @@
                              Margin="0,2,0,0">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="models:CollectionItem">
-                                <Grid Height="25" ColumnDefinitions="Auto,*,Auto" Margin="8,0" VerticalAlignment="Center">
+                                <Grid Height="25"
+                                      ColumnDefinitions="Auto,*,Auto"
+                                      Margin="8,0"
+                                      Background="Transparent"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Center"
+                                      DoubleTapped="OnCollectionDoubleTapped">
+                                    <Grid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Rename"
+                                                      Click="OnRenameCollectionMenuItemClick">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="&#xE104;" FontFamily="Segoe MDL2 Assets"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Delete"
+                                                      Command="{Binding #Root.DataContext.DeleteCollectionCommand}"
+                                                      CommandParameter="{Binding}">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Foreground="#EF4444"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </Grid.ContextMenu>
                                     <TextBlock Text="&#xE8B7;"
                                                FontFamily="Segoe MDL2 Assets"
                                                Foreground="#A7F3D0"
@@ -305,7 +328,18 @@
                                                FontSize="12"
                                                Margin="8,0,0,0"
                                                VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis"/>
+                                               TextTrimming="CharacterEllipsis"
+                                               IsVisible="{Binding !IsEditingName}"/>
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="6,0,4,0"
+                                             Height="24"
+                                             Padding="4,0"
+                                             FontSize="12"
+                                             VerticalContentAlignment="Center"
+                                             KeyUp="OnCollectionNameTextBoxKeyUp"
+                                             LostFocus="OnCollectionNameTextBoxLostFocus"
+                                             IsVisible="{Binding IsEditingName}"/>
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding DocumentCount}"
                                                Foreground="#D9DFF0"
