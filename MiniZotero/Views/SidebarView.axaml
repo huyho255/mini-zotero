@@ -307,7 +307,7 @@
                                                VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis"/>
                                     <TextBlock Grid.Column="2"
-                                               Text="{Binding DocumentIds.Count}"
+                                               Text="{Binding DocumentCount}"
                                                Foreground="#D9DFF0"
                                                FontSize="11"
                                                VerticalAlignment="Center"/>
@@ -350,7 +350,7 @@
                                                 <MenuItem Header="Add to Collection" ItemsSource="{Binding #Root.DataContext.Collections}" IsVisible="{Binding !IsTrash}">
                                                     <MenuItem.ItemTemplate>
                                                         <DataTemplate>
-                                                            <MenuItem Header="{Binding Name}" Command="{Binding #Root.DataContext.AddSelectedDocumentToCollectionCommand}" CommandParameter="{Binding}"/>
+                                                            <MenuItem Header="{Binding Name}" Command="{Binding #Root.DataContext.AddSelectedDocumentToSpecificCollectionCommand}" CommandParameter="{Binding}"/>
                                                         </DataTemplate>
                                                     </MenuItem.ItemTemplate>
                                                 </MenuItem>
